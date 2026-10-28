@@ -1,0 +1,506 @@
+/* The learner interface intentionally remains phone-sized on every display. */
+body {
+  background: #eeeaf3;
+}
+.mobile-shell {
+  width: 100%;
+  max-width: 480px;
+  min-height: 100dvh;
+  margin: 0 auto;
+  background: #fbfafd;
+  position: relative;
+  box-shadow: 0 0 70px #49346a12;
+  padding-bottom: 100px;
+}
+.mobile-topbar {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  height: 72px;
+  padding: 0 21px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #ffffffed;
+  backdrop-filter: blur(15px);
+  border-bottom: 1px solid #ede8f4;
+}
+.mobile-brand {
+  font-weight: 800;
+  font-size: 28px;
+  color: #7746bf;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  letter-spacing: -1px;
+}
+.mobile-brand span {
+  font-size: 22px;
+  color: #39244e;
+}
+.mobile-counters {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+.mobile-counters a {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 11px;
+  font-weight: 700;
+}
+.mobile-counters a:last-child {
+  color: #91859b;
+  margin-left: 1px;
+}
+.mobile-navigation {
+  position: fixed;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100%;
+  max-width: 480px;
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  background: #fffffffa;
+  backdrop-filter: blur(20px);
+  border-top: 1px solid #eee8f3;
+  padding: 10px 5px calc(10px + env(safe-area-inset-bottom));
+  z-index: 40;
+}
+.mobile-navigation a {
+  display: flex;
+  align-items: center;
+  flex-direction: column;
+  gap: 3px;
+  color: #92869d;
+  font-size: 10px;
+  font-weight: 600;
+  min-width: 60px;
+}
+.mobile-navigation a > span {
+  display: flex;
+  width: 48px;
+  height: 30px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+}
+.mobile-navigation a.active {
+  color: #7746bf;
+}
+.mobile-navigation a.active > span {
+  background: #eee5fa;
+}
+.mobile-shell .main-content {
+  padding: 26px 20px 10px;
+  min-height: calc(100dvh - 170px);
+}
+.mobile-shell .page-heading {
+  display: block;
+  margin-bottom: 22px;
+}
+.mobile-shell .page-heading h1 {
+  font-size: 26px;
+  letter-spacing: -0.9px;
+  line-height: 1.23;
+}
+.mobile-shell .page-heading p {
+  font-size: 12px;
+  line-height: 1.65;
+  color: #83768e;
+  margin-top: 9px;
+}
+.mobile-shell .page-heading > .button {
+  margin-top: 15px;
+}
+.mobile-shell .date-chip {
+  display: none;
+}
+.mobile-shell .eyebrow {
+  font-size: 8px;
+  letter-spacing: 1.5px;
+  color: #9a88ab;
+}
+.mobile-shell .dashboard-grid {
+  display: block;
+}
+.mobile-shell .hero {
+  padding: 25px;
+  min-height: 250px;
+  border-radius: 22px;
+  background: linear-gradient(130deg, #6c39b6, #9e72d8);
+  box-shadow: 0 9px 25px #7847b51a;
+}
+.mobile-shell .hero h2 {
+  font-size: 28px;
+  line-height: 1.16;
+  margin: 14px 0;
+}
+.mobile-shell .hero-label {
+  font-size: 6.5px;
+  letter-spacing: 1.1px;
+}
+.mobile-shell .hero p {
+  font-size: 11px;
+  max-width: 210px;
+}
+.mobile-shell .hero .button {
+  font-size: 12px;
+  min-height: 43px;
+  border-radius: 10px;
+}
+.mobile-shell .tooth-art {
+  width: 182px;
+  right: -19px;
+  bottom: 12px;
+  opacity: 0.93;
+}
+.mobile-shell .section-top {
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.mobile-shell .section-top > .small {
+  display: none;
+}
+.mobile-shell .tabs {
+  gap: 24px;
+}
+.mobile-shell .tabs button {
+  font-size: 12px;
+  min-height: 44px;
+}
+.mobile-shell .course-summary {
+  padding: 17px;
+  gap: 11px;
+  border-radius: 16px;
+}
+.mobile-shell .course-summary .course-icon {
+  width: 43px;
+  height: 43px;
+}
+.mobile-shell .course-summary h2 {
+  font-size: 16px;
+}
+.mobile-shell .course-summary select {
+  max-width: 35px;
+  width: 35px;
+  padding: 7px;
+  font-size: 0;
+}
+.mobile-shell .course-summary select option {
+  font-size: 14px;
+}
+.mobile-shell .course-summary .eyebrow {
+  font-size: 7px;
+  letter-spacing: 1px;
+}
+.mobile-shell .progress-row {
+  max-width: none;
+  font-size: 10px;
+}
+.mobile-shell .chapter-heading {
+  gap: 10px;
+  align-items: center;
+}
+.mobile-shell .chapter-heading h3 {
+  font-size: 13px;
+  line-height: 1.5;
+}
+.mobile-shell .chapter-heading > .small {
+  display: none;
+}
+.mobile-shell .chapter-number {
+  border-radius: 11px;
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+}
+.mobile-shell .lesson-list {
+  gap: 12px;
+}
+.mobile-shell .lesson-row {
+  padding: 17px 14px;
+  gap: 11px;
+  border-radius: 16px;
+}
+.mobile-shell .lesson-marker {
+  width: 36px;
+  height: 36px;
+}
+.mobile-shell .lesson-row h4 {
+  font-size: 12px;
+  line-height: 1.5;
+}
+.mobile-shell .lesson-row .small {
+  font-size: 9px;
+  color: #998ba3;
+}
+.mobile-shell .lesson-row.current {
+  border: 1.5px solid #b792e3;
+  box-shadow: 0 4px 12px #7d4db00a;
+}
+.mobile-shell .compact {
+  padding: 10px 8px;
+  font-size: 10px;
+  min-height: 40px;
+}
+.mobile-shell .lesson-row .text-link {
+  font-size: 9px;
+  gap: 3px;
+}
+.mobile-shell .right-rail {
+  display: block;
+}
+.mobile-shell .right-rail .card {
+  padding: 20px;
+}
+.mobile-shell .right-rail .card:nth-child(2),
+.mobile-shell .right-rail .tip {
+  display: none;
+}
+.mobile-shell .week span {
+  width: 31px;
+  height: 31px;
+}
+.mobile-shell .card {
+  border-radius: 16px;
+  padding: 21px;
+  box-shadow: 0 3px 8px #33204b02;
+}
+.mobile-shell .two-grid,
+.mobile-shell .three-grid,
+.mobile-shell .course-grid {
+  grid-template-columns: 1fr;
+  gap: 14px;
+}
+.mobile-shell .three-grid .card {
+  margin: 0;
+}
+.mobile-shell h2 {
+  font-size: 21px;
+}
+.mobile-shell .three-grid {
+  margin-bottom: 25px;
+}
+.mobile-shell .course-card {
+  text-align: left;
+}
+.mobile-shell .product-card {
+  gap: 14px;
+}
+.mobile-shell .price {
+  font-size: 34px;
+}
+.mobile-shell .button {
+  min-height: 44px;
+  border-radius: 10px;
+  font-size: 12px;
+}
+.mobile-shell .post-actions .button {
+  min-width: 44px;
+}
+.mobile-shell .section-top input,
+.mobile-shell .section-top select {
+  max-width: 100%;
+}
+.mobile-shell .narrow {
+  width: 100%;
+}
+.mobile-shell .league-banner {
+  padding: 25px;
+  gap: 18px;
+  flex-direction: column;
+  align-items: flex-start;
+}
+.mobile-shell .league-banner p {
+  font-size: 12px;
+}
+.mobile-shell .ranking-row {
+  grid-template-columns: 20px 1fr 65px;
+  gap: 10px;
+  padding: 16px 0;
+  font-size: 12px;
+}
+.mobile-shell .ranking-head {
+  grid-template-columns: 25px 1fr 70px;
+  padding: 10px 0;
+  font-size: 8px;
+  gap: 10px;
+}
+.mobile-shell .ranking-row > span {
+  gap: 9px;
+}
+.mobile-shell .lesson-player {
+  margin: 0 auto 30px;
+}
+.mobile-shell .lesson-player h1 {
+  font-size: 22px;
+}
+.mobile-shell .lesson-player .section-top {
+  flex-wrap: nowrap;
+}
+.mobile-shell .lesson-player > .card {
+  padding: 24px 20px;
+}
+.mobile-shell .lesson-text {
+  font-size: 16px;
+  line-height: 1.85;
+}
+.mobile-shell .answer {
+  padding: 15px;
+  font-size: 13px;
+  gap: 10px;
+}
+.mobile-shell .answer > span {
+  flex-shrink: 0;
+}
+.mobile-shell .lesson-actions > .button {
+  flex: 1;
+}
+.mobile-shell .demo-notice {
+  font-size: 9px;
+  justify-content: space-between;
+  padding: 8px 20px;
+}
+.mobile-shell .empty {
+  padding: 40px 8px;
+}
+.mobile-shell .notice {
+  font-size: 12px;
+}
+.profile-menu {
+  display: grid;
+  border: 1px solid #ece5f2;
+  border-radius: 17px;
+  overflow: hidden;
+  margin: 20px 0 28px;
+  background: white;
+}
+.profile-menu > a {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 17px 18px;
+  border-bottom: 1px solid #f0ebf5;
+}
+.profile-menu > a:last-child {
+  border: 0;
+}
+.profile-menu strong {
+  font-size: 13px;
+}
+.profile-menu small {
+  display: block;
+  color: #9b8da5;
+  font-size: 10px;
+  margin-top: 3px;
+}
+.profile-menu > a > span {
+  color: #a892bd;
+  font-size: 23px;
+}
+.mobile-auth {
+  max-width: 480px;
+  margin: auto;
+  min-height: 100dvh;
+  padding: 25px 23px;
+  box-shadow: 0 0 70px #49346a12;
+}
+.mobile-auth .auth-card {
+  padding: 25px 12px;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.mobile-auth .auth-card .brand {
+  font-size: 34px;
+  margin-bottom: 70px;
+}
+.mobile-auth h1 {
+  font-size: 34px;
+  letter-spacing: -1.3px;
+}
+.mobile-auth .auth-card > p {
+  font-size: 14px;
+  line-height: 1.8;
+}
+.mobile-auth form {
+  margin: 30px 0;
+}
+.mobile-auth input {
+  height: 53px;
+  background: #fff;
+  border-radius: 12px;
+}
+.mobile-auth .button {
+  height: 51px;
+  border-radius: 12px;
+  font-size: 14px;
+}
+.mobile-auth form small {
+  font-size: 11px;
+  line-height: 1.6;
+}
+.mobile-shell .skip {
+  left: auto;
+}
+.mobile-shell input,
+.mobile-shell textarea,
+.mobile-shell select {
+  font-size: 16px;
+}
+.mobile-shell select option {
+  font-size: 14px;
+}
+@media (max-width: 360px) {
+  .mobile-shell .main-content {
+    padding-left: 14px;
+    padding-right: 14px;
+  }
+  .mobile-topbar {
+    padding: 0 15px;
+  }
+  .mobile-counters {
+    gap: 8px;
+  }
+  .mobile-brand span {
+    font-size: 20px;
+  }
+  .mobile-shell .tooth-art {
+    width: 155px;
+    right: -24px;
+  }
+  .mobile-shell .hero {
+    padding: 22px;
+  }
+  .mobile-shell .hero h2 {
+    font-size: 26px;
+  }
+  .mobile-navigation a {
+    min-width: 52px;
+    font-size: 9px;
+  }
+}
+.mobile-shell .lesson-tools > div:first-child {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1px;
+  padding: 0 0 16px;
+}
+.mobile-shell .lesson-tools .button {
+  font-size: 10px;
+  padding: 6px 8px;
+  min-height: 40px;
+}
+.mobile-shell .tabs {
+  gap: 18px;
+  overflow: auto;
+  white-space: nowrap;
+}
+.mobile-shell .tabs button {
+  font-size: 11px;
+  flex-shrink: 0;
+}

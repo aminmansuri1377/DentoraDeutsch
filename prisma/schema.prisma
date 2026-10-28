@@ -1,0 +1,757 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  USER
+  EDITOR
+  ADMIN
+}
+
+enum Access {
+  FREE
+  PRO
+  PURCHASE
+}
+
+enum ContentStatus {
+  DRAFT
+  REVIEW
+  PUBLISHED
+  ARCHIVED
+}
+
+enum QuestionKind {
+  SINGLE_CHOICE
+  TRUE_FALSE
+}
+
+enum ProductKind {
+  PRO
+  COURSE
+  GEMS
+}
+
+enum OrderStatus {
+  PENDING
+  PAID
+  REFUNDED
+  CANCELLED
+}
+
+model User {
+  id                       String                @id @default(cuid())
+  name                     String?
+  email                    String?               @unique
+  emailVerified            DateTime?
+  image                    String?
+  username                 String?               @unique
+  bio                      String                @default("")
+  university               String                @default("")
+  role                     Role                  @default(USER)
+  publicProfile            Boolean               @default(true)
+  goalMinutes              Int                   @default(15)
+  timezone                 String                @default("Europe/Berlin")
+  emailReminders           Boolean               @default(false)
+  createdAt                DateTime              @default(now())
+  updatedAt                DateTime              @updatedAt
+  account_user             Account[]             @relation("Account_user")
+  session_user             Session[]             @relation("Session_user")
+  enrollment_user          Enrollment[]          @relation("Enrollment_user")
+  lessonProgress_user      LessonProgress[]      @relation("LessonProgress_user")
+  attempt_user             Attempt[]             @relation("Attempt_user")
+  lessonBookmark_user      LessonBookmark[]      @relation("LessonBookmark_user")
+  questionBookmark_user    QuestionBookmark[]    @relation("QuestionBookmark_user")
+  highlight_user           Highlight[]           @relation("Highlight_user")
+  reviewCard_user          ReviewCard[]          @relation("ReviewCard_user")
+  game                     GameState?
+  rewardLedger_user        RewardLedger[]        @relation("RewardLedger_user")
+  dailyActivity_user       DailyActivity[]       @relation("DailyActivity_user")
+  missionClaim_user        MissionClaim[]        @relation("MissionClaim_user")
+  wheelSpin_user           WheelSpin[]           @relation("WheelSpin_user")
+  userBadge_user           UserBadge[]           @relation("UserBadge_user")
+  certificate_user         Certificate[]         @relation("Certificate_user")
+  leagueEntry_user         LeagueEntry[]         @relation("LeagueEntry_user")
+  post_author              Post[]                @relation("Post_author")
+  media_owner              Media[]               @relation("Media_owner")
+  comment_author           Comment[]             @relation("Comment_author")
+  postLike_user            PostLike[]            @relation("PostLike_user")
+  postBookmark_user        PostBookmark[]        @relation("PostBookmark_user")
+  follow_follower          Follow[]              @relation("Follow_follower")
+  follow_following         Follow[]              @relation("Follow_following")
+  report_reporter          Report[]              @relation("Report_reporter")
+  order_user               Order[]               @relation("Order_user")
+  entitlement_user         Entitlement[]         @relation("Entitlement_user")
+  couponRedemption_user    CouponRedemption[]    @relation("CouponRedemption_user")
+  studentVerification_user StudentVerification[] @relation("StudentVerification_user")
+  notification_user        Notification[]        @relation("Notification_user")
+  ticket_user              Ticket[]              @relation("Ticket_user")
+  ticketMessage_author     TicketMessage[]       @relation("TicketMessage_author")
+  feedback_user            Feedback[]            @relation("Feedback_user")
+  auditLog_actor           AuditLog[]            @relation("AuditLog_actor")
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+  userId            String
+  user              User    @relation("Account_user", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  expires      DateTime
+  userId       String
+  user         User     @relation("Session_user", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model Specialty {
+  id          String   @id @default(cuid())
+  slug        String   @unique
+  title       String
+  description String
+  icon        String   @default("tooth")
+  position    Int      @unique
+  courses     Course[]
+}
+
+model Course {
+  id                 String        @id @default(cuid())
+  slug               String        @unique
+  title              String
+  description        String
+  access             Access        @default(FREE)
+  status             ContentStatus @default(DRAFT)
+  specialtyId        String
+  specialty          Specialty     @relation(fields: [specialtyId], references: [id])
+  createdAt          DateTime      @default(now())
+  chapters           Chapter[]     @relation("Chapter_course")
+  enrollment_course  Enrollment[]  @relation("Enrollment_course")
+  certificate_course Certificate[] @relation("Certificate_course")
+  product_course     Product[]     @relation("Product_course")
+  entitlement_course Entitlement[] @relation("Entitlement_course")
+
+  @@index([specialtyId])
+}
+
+model Chapter {
+  id       String   @id @default(cuid())
+  title    String
+  guide    String   @default("")
+  position Int
+  courseId String
+  course   Course   @relation("Chapter_course", fields: [courseId], references: [id], onDelete: Cascade)
+  lessons  Lesson[] @relation("Lesson_chapter")
+
+  @@unique([courseId, position])
+  @@index([courseId])
+}
+
+model Lesson {
+  id                    String           @id @default(cuid())
+  slug                  String           @unique
+  title                 String
+  position              Int
+  estimatedMinutes      Int              @default(5)
+  freePreview           Boolean          @default(false)
+  status                ContentStatus    @default(DRAFT)
+  reviewedAt            DateTime?
+  reviewerName          String?
+  version               Int              @default(1)
+  chapterId             String
+  chapter               Chapter          @relation("Lesson_chapter", fields: [chapterId], references: [id], onDelete: Cascade)
+  blocks                LessonBlock[]    @relation("LessonBlock_lesson")
+  questions             Question[]       @relation("Question_lesson")
+  progress              LessonProgress[] @relation("LessonProgress_lesson")
+  attempt_lesson        Attempt[]        @relation("Attempt_lesson")
+  lessonBookmark_lesson LessonBookmark[] @relation("LessonBookmark_lesson")
+
+  @@unique([chapterId, position])
+  @@index([chapterId])
+}
+
+model LessonBlock {
+  id              String      @id @default(cuid())
+  position        Int
+  kind            String      @default("TEXT")
+  text            String
+  mediaUrl        String?
+  sourceUrl       String?
+  lessonId        String
+  lesson          Lesson      @relation("LessonBlock_lesson", fields: [lessonId], references: [id], onDelete: Cascade)
+  highlight_block Highlight[] @relation("Highlight_block")
+
+  @@unique([lessonId, position])
+  @@index([lessonId])
+}
+
+model Question {
+  id                        String             @id @default(cuid())
+  position                  Int
+  kind                      QuestionKind       @default(SINGLE_CHOICE)
+  prompt                    String
+  explanation               String
+  hint                      String?
+  lessonId                  String
+  lesson                    Lesson             @relation("Question_lesson", fields: [lessonId], references: [id], onDelete: Cascade)
+  options                   AnswerOption[]     @relation("AnswerOption_question")
+  attemptAnswer_question    AttemptAnswer[]    @relation("AttemptAnswer_question")
+  questionBookmark_question QuestionBookmark[] @relation("QuestionBookmark_question")
+  reviewCard_question       ReviewCard[]       @relation("ReviewCard_question")
+  report_question           Report[]           @relation("Report_question")
+
+  @@unique([lessonId, position])
+  @@index([lessonId])
+}
+
+model AnswerOption {
+  id                   String          @id @default(cuid())
+  text                 String
+  isCorrect            Boolean         @default(false)
+  position             Int
+  questionId           String
+  question             Question        @relation("AnswerOption_question", fields: [questionId], references: [id], onDelete: Cascade)
+  attemptAnswer_option AttemptAnswer[] @relation("AttemptAnswer_option")
+
+  @@unique([questionId, position])
+  @@index([questionId])
+}
+
+model Enrollment {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  userId    String
+  user      User     @relation("Enrollment_user", fields: [userId], references: [id], onDelete: Cascade)
+  courseId  String
+  course    Course   @relation("Enrollment_course", fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, courseId])
+  @@index([userId])
+  @@index([courseId])
+}
+
+model LessonProgress {
+  id          String   @id @default(cuid())
+  completedAt DateTime @default(now())
+  bestScore   Int
+  userId      String
+  user        User     @relation("LessonProgress_user", fields: [userId], references: [id], onDelete: Cascade)
+  lessonId    String
+  lesson      Lesson   @relation("LessonProgress_lesson", fields: [lessonId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, lessonId])
+  @@index([userId])
+  @@index([lessonId])
+}
+
+model Attempt {
+  id            String          @id @default(cuid())
+  startedAt     DateTime        @default(now())
+  completedAt   DateTime?
+  expiresAt     DateTime
+  score         Int             @default(0)
+  lessonVersion Int
+  userId        String
+  user          User            @relation("Attempt_user", fields: [userId], references: [id], onDelete: Cascade)
+  lessonId      String
+  lesson        Lesson          @relation("Attempt_lesson", fields: [lessonId], references: [id], onDelete: Cascade)
+  answers       AttemptAnswer[] @relation("AttemptAnswer_attempt")
+
+  @@index([userId, startedAt])
+  @@index([userId])
+  @@index([lessonId])
+}
+
+model AttemptAnswer {
+  id         String       @id @default(cuid())
+  correct    Boolean
+  answeredAt DateTime     @default(now())
+  attemptId  String
+  attempt    Attempt      @relation("AttemptAnswer_attempt", fields: [attemptId], references: [id], onDelete: Cascade)
+  questionId String
+  question   Question     @relation("AttemptAnswer_question", fields: [questionId], references: [id], onDelete: Cascade)
+  optionId   String
+  option     AnswerOption @relation("AttemptAnswer_option", fields: [optionId], references: [id], onDelete: Cascade)
+
+  @@unique([attemptId, questionId])
+  @@index([attemptId])
+  @@index([questionId])
+  @@index([optionId])
+}
+
+model LessonBookmark {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  userId    String
+  user      User     @relation("LessonBookmark_user", fields: [userId], references: [id], onDelete: Cascade)
+  lessonId  String
+  lesson    Lesson   @relation("LessonBookmark_lesson", fields: [lessonId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, lessonId])
+  @@index([userId])
+  @@index([lessonId])
+}
+
+model QuestionBookmark {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation("QuestionBookmark_user", fields: [userId], references: [id], onDelete: Cascade)
+  questionId String
+  question   Question @relation("QuestionBookmark_question", fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, questionId])
+  @@index([userId])
+  @@index([questionId])
+}
+
+model Highlight {
+  id        String      @id @default(cuid())
+  quote     String
+  note      String      @default("")
+  createdAt DateTime    @default(now())
+  userId    String
+  user      User        @relation("Highlight_user", fields: [userId], references: [id], onDelete: Cascade)
+  blockId   String
+  block     LessonBlock @relation("Highlight_block", fields: [blockId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([blockId])
+}
+
+model ReviewCard {
+  id           String   @id @default(cuid())
+  dueAt        DateTime @default(now())
+  intervalDays Int      @default(1)
+  userId       String
+  user         User     @relation("ReviewCard_user", fields: [userId], references: [id], onDelete: Cascade)
+  questionId   String
+  question     Question @relation("ReviewCard_question", fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, questionId])
+  @@index([userId, dueAt])
+  @@index([userId])
+  @@index([questionId])
+}
+
+model GameState {
+  id              String   @id @default(cuid())
+  xp              Int      @default(0)
+  gems            Int      @default(0)
+  hearts          Int      @default(5)
+  heartsUpdatedAt DateTime @default(now())
+  streak          Int      @default(0)
+  lastStudyDay    String?
+  streakGuards    Int      @default(0)
+  userId          String   @unique
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model RewardLedger {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  xp        Int      @default(0)
+  gems      Int      @default(0)
+  reason    String
+  createdAt DateTime @default(now())
+  userId    String
+  user      User     @relation("RewardLedger_user", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([userId])
+}
+
+model DailyActivity {
+  id      String @id @default(cuid())
+  day     String
+  seconds Int    @default(0)
+  lessons Int    @default(0)
+  xp      Int    @default(0)
+  userId  String
+  user    User   @relation("DailyActivity_user", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, day])
+  @@index([userId])
+}
+
+model MissionClaim {
+  id        String   @id @default(cuid())
+  day       String
+  mission   String
+  createdAt DateTime @default(now())
+  userId    String
+  user      User     @relation("MissionClaim_user", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, day, mission])
+  @@index([userId])
+}
+
+model WheelSpin {
+  id     String @id @default(cuid())
+  day    String
+  prize  String
+  gems   Int
+  userId String
+  user   User   @relation("WheelSpin_user", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, day])
+  @@index([userId])
+}
+
+model Badge {
+  id          String      @id @default(cuid())
+  slug        String      @unique
+  title       String
+  description String
+  category    String
+  threshold   Int
+  awards      UserBadge[] @relation("UserBadge_badge")
+}
+
+model UserBadge {
+  id        String   @id @default(cuid())
+  awardedAt DateTime @default(now())
+  userId    String
+  user      User     @relation("UserBadge_user", fields: [userId], references: [id], onDelete: Cascade)
+  badgeId   String
+  badge     Badge    @relation("UserBadge_badge", fields: [badgeId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, badgeId])
+  @@index([userId])
+  @@index([badgeId])
+}
+
+model Certificate {
+  id             String    @id @default(cuid())
+  code           String    @unique @default(uuid())
+  issuedAt       DateTime  @default(now())
+  nameSnapshot   String
+  courseSnapshot String
+  revokedAt      DateTime?
+  userId         String
+  user           User      @relation("Certificate_user", fields: [userId], references: [id], onDelete: Cascade)
+  courseId       String
+  course         Course    @relation("Certificate_course", fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, courseId])
+  @@index([userId])
+  @@index([courseId])
+}
+
+model LeagueSeason {
+  id                 String        @id @default(cuid())
+  period             String
+  startsAt           DateTime
+  endsAt             DateTime
+  settledAt          DateTime?
+  leagueEntry_season LeagueEntry[] @relation("LeagueEntry_season")
+
+  @@unique([period, startsAt])
+  @@index([endsAt, settledAt])
+}
+
+model LeagueEntry {
+  id         String       @id @default(cuid())
+  xp         Int          @default(0)
+  rank       Int?
+  rewardGems Int          @default(0)
+  seasonId   String
+  season     LeagueSeason @relation("LeagueEntry_season", fields: [seasonId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User         @relation("LeagueEntry_user", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([seasonId, userId])
+  @@index([seasonId, xp])
+  @@index([seasonId])
+  @@index([userId])
+}
+
+model Post {
+  id          String         @id @default(cuid())
+  body        String
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  deletedAt   DateTime?
+  authorId    String
+  author      User           @relation("Post_author", fields: [authorId], references: [id], onDelete: Cascade)
+  media_post  Media[]        @relation("Media_post")
+  comments    Comment[]      @relation("Comment_post")
+  likes       PostLike[]     @relation("PostLike_post")
+  bookmarks   PostBookmark[] @relation("PostBookmark_post")
+  report_post Report[]       @relation("Report_post")
+
+  @@index([createdAt, id])
+  @@index([authorId])
+}
+
+model Media {
+  id        String   @id @default(cuid())
+  objectKey String   @unique
+  mimeType  String
+  size      Int
+  status    String   @default("PENDING")
+  createdAt DateTime @default(now())
+  ownerId   String
+  owner     User     @relation("Media_owner", fields: [ownerId], references: [id], onDelete: Cascade)
+  postId    String?
+  post      Post?    @relation("Media_post", fields: [postId], references: [id], onDelete: Cascade)
+
+  @@index([ownerId])
+  @@index([postId])
+}
+
+model Comment {
+  id        String    @id @default(cuid())
+  body      String
+  createdAt DateTime  @default(now())
+  deletedAt DateTime?
+  authorId  String
+  author    User      @relation("Comment_author", fields: [authorId], references: [id], onDelete: Cascade)
+  postId    String
+  post      Post      @relation("Comment_post", fields: [postId], references: [id], onDelete: Cascade)
+
+  @@index([authorId])
+  @@index([postId])
+}
+
+model PostLike {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation("PostLike_user", fields: [userId], references: [id], onDelete: Cascade)
+  postId String
+  post   Post   @relation("PostLike_post", fields: [postId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, postId])
+  @@index([userId])
+  @@index([postId])
+}
+
+model PostBookmark {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation("PostBookmark_user", fields: [userId], references: [id], onDelete: Cascade)
+  postId String
+  post   Post   @relation("PostBookmark_post", fields: [postId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, postId])
+  @@index([userId])
+  @@index([postId])
+}
+
+model Follow {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+  followerId  String
+  follower    User     @relation("Follow_follower", fields: [followerId], references: [id], onDelete: Cascade)
+  followingId String
+  following   User     @relation("Follow_following", fields: [followingId], references: [id], onDelete: Cascade)
+
+  @@unique([followerId, followingId])
+  @@index([followerId])
+  @@index([followingId])
+}
+
+model Report {
+  id         String    @id @default(cuid())
+  reason     String
+  status     String    @default("OPEN")
+  createdAt  DateTime  @default(now())
+  reporterId String
+  reporter   User      @relation("Report_reporter", fields: [reporterId], references: [id], onDelete: Cascade)
+  postId     String?
+  post       Post?     @relation("Report_post", fields: [postId], references: [id], onDelete: Cascade)
+  questionId String?
+  question   Question? @relation("Report_question", fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@index([reporterId])
+  @@index([postId])
+  @@index([questionId])
+}
+
+model Product {
+  id            String      @id @default(cuid())
+  slug          String      @unique
+  title         String
+  description   String
+  kind          ProductKind
+  priceCents    Int
+  currency      String      @default("eur")
+  durationDays  Int?
+  gems          Int         @default(0)
+  active        Boolean     @default(false)
+  stripePriceId String?     @unique
+  courseId      String?
+  course        Course?     @relation("Product_course", fields: [courseId], references: [id], onDelete: Cascade)
+  order_product Order[]     @relation("Order_product")
+
+  @@index([courseId])
+}
+
+model Order {
+  id              String       @id @default(cuid())
+  status          OrderStatus  @default(PENDING)
+  amountCents     Int
+  currency        String
+  stripeSessionId String?      @unique
+  createdAt       DateTime     @default(now())
+  paidAt          DateTime?
+  userId          String
+  user            User         @relation("Order_user", fields: [userId], references: [id], onDelete: Cascade)
+  productId       String
+  product         Product      @relation("Order_product", fields: [productId], references: [id], onDelete: Restrict)
+  entitlement     Entitlement?
+
+  @@index([userId])
+  @@index([productId])
+}
+
+model Entitlement {
+  id        String    @id @default(cuid())
+  startsAt  DateTime  @default(now())
+  endsAt    DateTime?
+  revokedAt DateTime?
+  orderId   String    @unique
+  order     Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User      @relation("Entitlement_user", fields: [userId], references: [id], onDelete: Cascade)
+  courseId  String?
+  course    Course?   @relation("Entitlement_course", fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([courseId])
+}
+
+model WebhookEvent {
+  id          String   @id
+  processedAt DateTime @default(now())
+  type        String
+}
+
+model Coupon {
+  id                      String             @id @default(cuid())
+  code                    String             @unique
+  percent                 Int
+  expiresAt               DateTime
+  maxUses                 Int
+  stripeCouponId          String?
+  couponRedemption_coupon CouponRedemption[] @relation("CouponRedemption_coupon")
+}
+
+model CouponRedemption {
+  id       String @id @default(cuid())
+  userId   String
+  user     User   @relation("CouponRedemption_user", fields: [userId], references: [id], onDelete: Cascade)
+  couponId String
+  coupon   Coupon @relation("CouponRedemption_coupon", fields: [couponId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, couponId])
+  @@index([userId])
+  @@index([couponId])
+}
+
+model StudentVerification {
+  id         String    @id @default(cuid())
+  objectKey  String
+  status     String    @default("PENDING")
+  createdAt  DateTime  @default(now())
+  reviewedAt DateTime?
+  expiresAt  DateTime?
+  userId     String
+  user       User      @relation("StudentVerification_user", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model Notification {
+  id        String    @id @default(cuid())
+  title     String
+  body      String
+  href      String?
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+  userId    String
+  user      User      @relation("Notification_user", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, readAt])
+  @@index([userId])
+}
+
+model Ticket {
+  id        String          @id @default(cuid())
+  subject   String
+  status    String          @default("OPEN")
+  createdAt DateTime        @default(now())
+  userId    String
+  user      User            @relation("Ticket_user", fields: [userId], references: [id], onDelete: Cascade)
+  messages  TicketMessage[] @relation("TicketMessage_ticket")
+
+  @@index([userId])
+}
+
+model TicketMessage {
+  id        String   @id @default(cuid())
+  body      String
+  createdAt DateTime @default(now())
+  ticketId  String
+  ticket    Ticket   @relation("TicketMessage_ticket", fields: [ticketId], references: [id], onDelete: Cascade)
+  authorId  String
+  author    User     @relation("TicketMessage_author", fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@index([ticketId])
+  @@index([authorId])
+}
+
+model Feedback {
+  id        String   @id @default(cuid())
+  body      String
+  createdAt DateTime @default(now())
+  userId    String
+  user      User     @relation("Feedback_user", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  action    String
+  entityId  String?
+  createdAt DateTime @default(now())
+  actorId   String?
+  actor     User?    @relation("AuditLog_actor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([actorId])
+}
+
+model RateLimit {
+  id        String   @id
+  count     Int      @default(1)
+  expiresAt DateTime
+
+  @@index([expiresAt])
+}
