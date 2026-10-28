@@ -1,4 +1,5 @@
 import { TRPCError } from "@trpc/server";
+import { setTimeout as delay } from "node:timers/promises";
 import { atomic } from "../transaction";
 import { requireLesson } from "./access";
 import {
@@ -22,7 +23,24 @@ export async function startLesson(userId: string, lessonId: string) {
       },
       orderBy: { startedAt: "desc" },
     });
-    if (existing) return existing;
+    if (existing) {
+      const answers = await tx.attemptAnswer.findMany({
+        where: { attemptId: existing.id },
+        select: {
+          questionId: true,
+          optionId: true,
+          correct: true,
+          question: { select: { explanation: true } },
+        },
+      });
+      return {
+        ...existing,
+        answers: answers.map(({ question, ...answer }) => ({
+          ...answer,
+          explanation: question.explanation,
+        })),
+      };
+    }
     const user = await tx.user.findUniqueOrThrow({ where: { id: userId } });
     const day = dayKey(now, user.timezone);
     const daily = await tx.attempt.count({
@@ -59,7 +77,7 @@ export async function startLesson(userId: string, lessonId: string) {
       create: { userId, courseId: lesson.chapter.courseId },
       update: {},
     });
-    return tx.attempt.create({
+    const attempt = await tx.attempt.create({
       data: {
         userId,
         lessonId,
@@ -67,6 +85,7 @@ export async function startLesson(userId: string, lessonId: string) {
         expiresAt: new Date(now.getTime() + 3600000),
       },
     });
+    return { ...attempt, answers: [] };
   });
 }
 export async function submitAnswer(
@@ -104,8 +123,19 @@ export async function submitAnswer(
     const previous = answered.find((a) => a.questionId === questionId);
     const question = questions.find((q) => q.id === questionId);
     if (!question) throw new TRPCError({ code: "BAD_REQUEST" });
-    if (previous)
-      return { correct: previous.correct, explanation: question.explanation };
+    if (previous) {
+      if (previous.optionId !== optionId)
+        throw new TRPCError({
+          code: "CONFLICT",
+          message:
+            "Diese Frage wurde bereits beantwortet. Öffne die Lektion erneut, um deine gespeicherte Antwort zu sehen.",
+        });
+      return {
+        optionId: previous.optionId,
+        correct: previous.correct,
+        explanation: question.explanation,
+      };
+    }
     const next = questions.find(
       (q) => !answered.some((a) => a.questionId === q.id),
     );
@@ -136,10 +166,28 @@ export async function submitAnswer(
         update: { dueAt: new Date(), intervalDays: 1 },
       });
     }
-    return { correct: option.isCorrect, explanation: question.explanation };
+    return {
+      optionId: option.id,
+      correct: option.isCorrect,
+      explanation: question.explanation,
+    };
   });
 }
 export async function finishLesson(userId: string, attemptId: string) {
+  // Finishing is idempotent: completedAt and rewards are committed atomically.
+  // A lost acknowledgement may therefore be retried without granting XP twice.
+  for (let retry = 0; ; retry++) {
+    try {
+      return await completeLesson(userId, attemptId);
+    } catch (error) {
+      const cause = error instanceof TRPCError ? error.cause : undefined;
+      const code = (cause as { code?: string } | undefined)?.code;
+      if (retry >= 2 || !["P1017", "P1001"].includes(code ?? "")) throw error;
+      await delay(300 * 2 ** retry);
+    }
+  }
+}
+async function completeLesson(userId: string, attemptId: string) {
   return atomic(async (tx) => {
     const attempt = await tx.attempt.findFirst({
       where: { id: attemptId, userId },

@@ -1,7 +1,19 @@
-export function Loading() {
+import { Loader } from "./loader";
+export function Loading({
+  label = "Einen Moment …",
+  compact = false,
+}: {
+  label?: string;
+  compact?: boolean;
+}) {
   return (
-    <div className="card" role="status">
-      Dein Lernraum wird geladen …
+    <div
+      className={`loading-state ${compact ? "loading-compact" : "card"}`}
+      role="status"
+      aria-live="polite"
+    >
+      <Loader />
+      <span>{label}</span>
     </div>
   );
 }

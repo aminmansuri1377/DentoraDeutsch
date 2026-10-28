@@ -17,6 +17,7 @@ export function LessonPage({ id }: { id: string }) {
   const l = lesson.data;
   return (
     <LessonPlayer
+      key={id}
       renderTools={(context) => <LessonTools {...context} />}
       lesson={{
         id: l.id,
@@ -27,13 +28,19 @@ export function LessonPage({ id }: { id: string }) {
           options: q.options,
         })),
       }}
-      onStart={async () => (await start.mutateAsync({ lessonId: id })).id}
-      onAnswer={(attemptId, questionId, optionId) =>
-        answer.mutateAsync({ attemptId, questionId, optionId })
-      }
+      onStart={() => start.mutateAsync({ lessonId: id })}
+      onAnswer={async (attemptId, questionId, optionId) => {
+        const response = await answer.mutateAsync({
+          attemptId,
+          questionId,
+          optionId,
+        });
+        void cache.invalidateQueries({ queryKey: api.profile.me.queryKey() });
+        return response;
+      }}
       onFinish={async (attemptId) => {
         const result = await finish.mutateAsync({ attemptId });
-        await cache.invalidateQueries();
+        void cache.invalidateQueries();
         return result;
       }}
       onBookmark={() => bookmark.mutateAsync({ lessonId: id, saved: true })}

@@ -1,6 +1,6 @@
 "use client";
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useTRPC } from "@/trpc/provider";
 import { useDebounced } from "@/hooks/use-debounced";
@@ -201,6 +201,11 @@ function ModelManager({ model }: { model: PanelModel }) {
       search: useDebounced(search),
     }),
   );
+  useEffect(() => {
+    if (data.data && page >= Math.max(1, data.data.pages)) {
+      setPage(Math.max(0, data.data.pages - 1));
+    }
+  }, [data.data, page]);
   return (
     <div className="panel-content">
       <div className="panel-heading">
@@ -234,12 +239,12 @@ function ModelManager({ model }: { model: PanelModel }) {
         </div>
         {data.isPending ? (
           <Loading />
-        ) : data.error ? (
+        ) : data.error && !data.data ? (
           <ErrorNotice message={data.error.message} />
         ) : (
           <RecordTable
             model={model}
-            rows={data.data.rows}
+            rows={data.data?.rows ?? []}
             onView={setView}
             onEdit={setEditor}
             onDelete={setDeletion}
@@ -271,7 +276,15 @@ function ModelManager({ model }: { model: PanelModel }) {
         <RecordEditor
           model={model}
           record={editor === "new" ? undefined : editor}
-          onClose={() => setEditor(null)}
+          onSaved={() => {
+            if (editor === "new") {
+              setPage(0);
+              setSearch("");
+            }
+          }}
+          onClose={() => {
+            setEditor(null);
+          }}
         />
       )}{" "}
       {deletion && (

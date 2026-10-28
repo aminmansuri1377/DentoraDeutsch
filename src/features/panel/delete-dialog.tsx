@@ -1,6 +1,8 @@
 "use client";
 import { useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
+import { Loading } from "@/components/ui/feedback";
+import { usePanelMutations } from "./hooks/use-panel-mutations";
 import { useTRPC } from "@/trpc/provider";
 import { Dialog } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -14,29 +16,26 @@ export function DeleteDialog({
   record: PanelRecord;
   onClose: () => void;
 }) {
-  const api = useTRPC(),
-    cache = useQueryClient();
+  const api = useTRPC();
   const [confirmation, setConfirmation] = useState("");
   const impact = useQuery(
     api.panel.impact.queryOptions({ model: model.name, key: record.key }),
   );
-  const remove = useMutation(
-    api.panel.remove.mutationOptions({
-      onSuccess: async () => {
-        await cache.invalidateQueries();
-        onClose();
-      },
-    }),
-  );
+  const { remove } = usePanelMutations(model, onClose, record);
   return (
-    <Dialog title="Datensatz endgültig löschen?" onClose={onClose}>
+    <Dialog
+      title="Datensatz endgültig löschen?"
+      onClose={() => {
+        if (!remove.isPending) onClose();
+      }}
+    >
       <div className="delete-body">
         <p>
           Dieser Vorgang kann nicht rückgängig gemacht werden. Verknüpfte Daten
           können ebenfalls gelöscht werden.
         </p>
         {impact.isPending ? (
-          <p>Verknüpfungen werden geprüft …</p>
+          <Loading label="Verknüpfungen werden geprüft …" compact />
         ) : impact.error ? (
           <p role="alert">{impact.error.message}</p>
         ) : (
@@ -67,11 +66,16 @@ export function DeleteDialog({
         )}
       </div>
       <footer className="dialog-actions">
-        <Button variant="secondary" onClick={onClose}>
+        <Button
+          variant="secondary"
+          onClick={onClose}
+          disabled={remove.isPending}
+        >
           Abbrechen
         </Button>
         <Button
           className="danger"
+          loading={remove.isPending}
           disabled={
             confirmation !== "LÖSCHEN" || remove.isPending || !impact.isSuccess
           }

@@ -1,7 +1,6 @@
 "use client";
 import { useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useTRPC } from "@/trpc/provider";
+import { usePanelMutations } from "./hooks/use-panel-mutations";
 import { Dialog } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import type { PanelModel, PanelRecord } from "./types";
@@ -10,13 +9,13 @@ export function RecordEditor({
   model,
   record,
   onClose,
+  onSaved,
 }: {
   model: PanelModel;
   record?: PanelRecord;
   onClose: () => void;
+  onSaved?: () => void;
 }) {
-  const api = useTRPC(),
-    cache = useQueryClient();
   const [values, setValues] = useState<Record<string, unknown>>(() =>
     record
       ? { ...record.values }
@@ -27,13 +26,13 @@ export function RecordEditor({
         ),
   );
   const [dirty, setDirty] = useState<string[]>([]);
-  const save = useMutation(
-    api.panel.save.mutationOptions({
-      onSuccess: async () => {
-        await cache.invalidateQueries();
-        onClose();
-      },
-    }),
+  const { save } = usePanelMutations(
+    model,
+    () => {
+      onSaved?.();
+      onClose();
+    },
+    record,
   );
   const editable = model.fields.filter(
     (f) => !f.readonly && !(record && f.primary),
@@ -108,7 +107,7 @@ export function RecordEditor({
           >
             Abbrechen
           </Button>
-          <Button disabled={save.isPending}>
+          <Button disabled={save.isPending} loading={save.isPending}>
             {save.isPending ? "Wird gespeichert …" : "Änderungen speichern"}
           </Button>
         </footer>

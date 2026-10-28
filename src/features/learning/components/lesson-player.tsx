@@ -1,11 +1,20 @@
 "use client";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import Link from "next/link";
 import { Bookmark, Lightbulb, ArrowRight, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { ErrorNotice } from "@/components/ui/feedback";
+type AnswerFeedback = {
+  optionId: string;
+  correct: boolean;
+  explanation: string;
+};
+export type LessonSession = {
+  id: string;
+  answers: (AnswerFeedback & { questionId: string })[];
+};
 export type LessonContent = {
   id: string;
   title: string;
@@ -27,12 +36,12 @@ export function LessonPlayer({
   renderTools,
 }: {
   lesson: LessonContent;
-  onStart: () => Promise<string>;
+  onStart: () => Promise<string | LessonSession>;
   onAnswer: (
     attemptId: string,
     questionId: string,
     optionId: string,
-  ) => Promise<{ correct: boolean; explanation: string }>;
+  ) => Promise<{ optionId?: string; correct: boolean; explanation: string }>;
   onFinish: (id: string) => Promise<{ score: number; xp: number }>;
   onBookmark: () => Promise<unknown>;
   demo?: boolean;
@@ -45,10 +54,7 @@ export function LessonPlayer({
   const [step, setStep] = useState(0),
     [attempt, setAttempt] = useState<string>(),
     [selected, setSelected] = useState<string>(),
-    [feedback, setFeedback] = useState<{
-      correct: boolean;
-      explanation: string;
-    }>(),
+    [answers, setAnswers] = useState<Record<string, AnswerFeedback>>({}),
     [result, setResult] = useState<{ score: number; xp: number }>(),
     [hint, setHint] = useState(false),
     [busy, setBusy] = useState(false),
@@ -56,8 +62,27 @@ export function LessonPlayer({
     [saved, setSaved] = useState(false);
   const block = lesson.blocks[step],
     question = lesson.questions[step - lesson.blocks.length];
+  const feedback = question ? answers[question.id] : undefined;
+  const chosen = feedback?.optionId ?? selected;
+  const acting = useRef(false);
   const total = lesson.blocks.length + lesson.questions.length;
+  async function ensureAttempt() {
+    if (attempt) return attempt;
+    const session = await onStart();
+    const id = typeof session === "string" ? session : session.id;
+    setAttempt(id);
+    if (typeof session !== "string") {
+      setAnswers(
+        Object.fromEntries(
+          session.answers.map((answer) => [answer.questionId, answer]),
+        ),
+      );
+    }
+    return id;
+  }
   async function act(fn: () => Promise<void>) {
+    if (acting.current) return;
+    acting.current = true;
     setBusy(true);
     setError(undefined);
     try {
@@ -65,23 +90,19 @@ export function LessonPlayer({
     } catch (e) {
       setError(e instanceof Error ? e.message : "Bitte erneut versuchen.");
     } finally {
+      acting.current = false;
       setBusy(false);
     }
   }
   async function next() {
     await act(async () => {
-      let id = attempt;
-      if (!id) {
-        id = await onStart();
-        setAttempt(id);
-      }
+      const id = await ensureAttempt();
       if (step + 1 === total) {
         setResult(await onFinish(id));
         return;
       }
       setStep(step + 1);
       setSelected(undefined);
-      setFeedback(undefined);
       setHint(false);
     });
   }
@@ -148,7 +169,8 @@ export function LessonPlayer({
                 <button
                   key={o.id}
                   disabled={!!feedback || busy}
-                  className={`answer ${selected === o.id ? "chosen" : ""}`}
+                  aria-pressed={chosen === o.id}
+                  className={`answer ${chosen === o.id ? "chosen" : ""} ${feedback && chosen === o.id ? (feedback.correct ? "answer-correct" : "answer-incorrect") : ""}`}
                   onClick={() => setSelected(o.id)}
                 >
                   <span aria-hidden="true">{String.fromCharCode(65 + i)}</span>
@@ -168,7 +190,7 @@ export function LessonPlayer({
             {feedback && (
               <div
                 role="status"
-                className={`notice ${feedback.correct ? "success" : ""}`}
+                className={`notice ${feedback.correct ? "success" : "error"}`}
               >
                 <strong>
                   {feedback.correct ? "Richtig!" : "Noch nicht ganz."}
@@ -194,18 +216,25 @@ export function LessonPlayer({
         {question && !feedback ? (
           <Button
             disabled={!selected || busy}
+            loading={busy}
             onClick={() =>
               act(async () => {
-                const id = attempt ?? (await onStart());
-                setAttempt(id);
-                setFeedback(await onAnswer(id, question.id, selected!));
+                const id = await ensureAttempt();
+                const response = await onAnswer(id, question.id, selected!);
+                setAnswers((current) => ({
+                  ...current,
+                  [question.id]: {
+                    ...response,
+                    optionId: response.optionId ?? selected!,
+                  },
+                }));
               })
             }
           >
             Antwort prüfen
           </Button>
         ) : (
-          <Button disabled={busy} onClick={next}>
+          <Button disabled={busy} loading={busy} onClick={next}>
             {step + 1 === total ? "Lektion abschließen" : "Weiter"}
             <ArrowRight size={17} />
           </Button>

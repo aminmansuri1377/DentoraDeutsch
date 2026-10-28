@@ -13,6 +13,17 @@ function handler(req: Request) {
     req,
     router: appRouter,
     createContext,
+    responseMeta: () => ({ headers: { "cache-control": "private, no-store" } }),
+    onError({ path, error }) {
+      // Record actionable metadata without logging inputs, credentials or SQL.
+      const cause = error.cause as { code?: string } | undefined;
+      console.error("[tRPC]", {
+        path,
+        code: error.code,
+        databaseCode: cause?.code,
+        time: new Date().toISOString(),
+      });
+    },
   });
 }
 export { handler as GET, handler as POST };

@@ -15,7 +15,14 @@ export function Providers({ children }: { children: React.ReactNode }) {
   );
   const [trpcClient] = useState(() =>
     createTRPCClient<AppRouter>({
-      links: [httpBatchLink({ url: "/api/trpc", transformer: superjson })],
+      links: [
+        httpBatchLink({
+          url: "/api/trpc",
+          transformer: superjson,
+          fetch: (url, options) =>
+            fetch(url, { ...options, cache: "no-store" }),
+        }),
+      ],
     }),
   );
   return (
