@@ -22,6 +22,7 @@ export async function createLocalDatabase() {
         "utf8",
       ),
     );
+  await engine.exec(await readFile(join(process.cwd(), "prisma/migrations/202611040001_letter_questions/migration.sql"), "utf8"));
   const client = new PrismaClient({ adapter: new PrismaPGlite(engine) });
   await seedDatabase(client);
   return client;

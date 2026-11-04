@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createTRPCClient, httpBatchLink } from "@trpc/client";
 import { createTRPCContext } from "@trpc/tanstack-react-query";
 import superjson from "superjson";
+import { rpcFetch } from "./rpc-fetch";
 import type { AppRouter } from "@/server/routers";
 export const { TRPCProvider, useTRPC } = createTRPCContext<AppRouter>();
 export function Providers({ children }: { children: React.ReactNode }) {
@@ -19,8 +20,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
         httpBatchLink({
           url: "/api/trpc",
           transformer: superjson,
-          fetch: (url, options) =>
-            fetch(url, { ...options, cache: "no-store" }),
+          fetch: rpcFetch,
         }),
       ],
     }),

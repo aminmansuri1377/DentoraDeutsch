@@ -1,0 +1,3776 @@
+diff --git a/.env.example b/.env.example
+index 6441b47bb038dd8d896ab9cab98955f074b23e2a..f647bf12247b0bd8613eea4893cccfb5fbc50f03 100644
+--- a/.env.example
++++ b/.env.example
+@@ -14,3 +14,8 @@ PANEL_PASSWORD="1111"
+ DATABASE_SSL_CA_FILE="./certs/supabase-ca.crt"
+ # Optional additional exact app origin. On Vercel Production set this to your live URL.
+ # APP_URL="https://dentora-deutsch.vercel.app"
++
++# Server-only media storage; never prefix the service_role key with NEXT_PUBLIC_.
++SUPABASE_URL="https://YOUR_PROJECT_REF.supabase.co"
++SUPABASE_SERVICE_ROLE_KEY=""
++SUPABASE_MEDIA_BUCKET="dentora-media"
+diff --git a/docs/PROFILE-AND-COMMUNITY.md b/docs/PROFILE-AND-COMMUNITY.md
+new file mode 100644
+index 0000000000000000000000000000000000000000..f8adfec9613c2c162478d3783a2cad3b98a4056d
+--- /dev/null
++++ b/docs/PROFILE-AND-COMMUNITY.md
+@@ -0,0 +1,73 @@
++# پروفایل و Community
++
++این patch روی نسخه‌ای اعمال می‌شود که patch مسیرهای یادگیری و خرگوش روی آن نصب شده است.
++
++```powershell
++git apply --check .\DentoraDeutsch-profile-community.patch
++git apply .\DentoraDeutsch-profile-community.patch
++npm install
++```
++
++## راه‌اندازی عکس‌ها (یک بار)
++
++عکس‌ها در **Supabase Storage** ذخیره می‌شوند، نه در فایل‌سیستم موقت Vercel.
++از همان پروژهٔ Supabase، مقدار Project URL و کلید **service_role** را بردارید.
++کلید service_role رمز دیتابیس و کلید anon نیست. آن را فقط در محیط سرور نگه دارید؛
++در پیام، Git یا متغیرهای `NEXT_PUBLIC_` قرار ندهید.
++
++به فایل واقعی `.env` و Environment Variables در Vercel اضافه کنید:
++
++```dotenv
++SUPABASE_URL="https://YOUR_PROJECT_REF.supabase.co"
++SUPABASE_SERVICE_ROLE_KEY="YOUR_SERVICE_ROLE_KEY"
++SUPABASE_MEDIA_BUCKET="dentora-media"
++```
++
++سپس در ریشه پروژه اجرا کنید:
++
++```powershell
++npm run storage:setup
++npm run dev
++```
++
++دستور setup فقط در صورت نبودن bucket، یک bucket خصوصی می‌سازد. برای bucket موجود
++عمداً دسترسی‌ها را تغییر نمی‌دهد. راه جایگزین: در Supabase → Storage یک bucket
++**Private** با نام دقیق `dentora-media` بسازید. اجازهٔ عمومی upload یا policy باز
++لازم نیست: درخواست‌ها ابتدا با نشست NextAuth در سرور برنامه بررسی می‌شوند.
++
++پس از افزودن envها در Vercel، تغییرات را push و Redeploy کنید. برای این patch
++migration جدید و اجرای seed لازم نیست؛ User.image و Media از قبل در schema هستند.
++
++## تغییرات
++
++- آپلود/تغییر عکس از خود پروفایل و تنظیمات؛ نمایش در پروفایل، پست و کامنت.
++- پروفایل با اطلاعات دانشگاه، bio، XP، استریک، تعداد پست‌ها و ارتباط‌ها، مدال‌ها.
++- نمایش دنبال‌کننده‌ها/دنبال‌شونده‌ها با صفحه‌بندی و لینک پروفایل.
++- وضعیت واقعی دنبال‌کردن از دیتابیس، دنبال‌کردن و لغو دنبال‌کردن.
++- سه تب جدیدترین، پست‌های من و ذخیره‌شده‌ها، جست‌وجو و بارگذاری پست‌های بیشتر.
++- پست متن و/یا یک عکس، لایک، ذخیره و لغو آن‌ها، کامنت با صفحه‌بندی و حذف پست خود.
++- نویسنده‌های بدون username نیز با شناسه به صفحهٔ پروفایل متصل می‌شوند.
++- متن‌های ریز خواناتر؛ خروج با نوشتهٔ قرمز در پایین پروفایل.
++- تغییرات با mutation و بازخوانی cache اعمال می‌شوند؛ reload دستی لازم نیست.
++
++## عکس‌ها و دسترسی
++
++فقط JPG/PNG/WebP تا ۲ مگابایت و ۱۶ مگاپیکسل. فایل روی سرور واقعاً decode و به WebP
++تبدیل می‌شود، اطلاعات EXIF حذف می‌شود؛ SVG و انیمیشن پذیرفته نمی‌شوند.
++عکس‌های پست به حداکثر ۱۴۴۰ پیکسل و عکس پروفایل به ۳۸۴ پیکسل تبدیل می‌شوند.
++آپلود محدود به کاربر واردشده و origin مجاز است. کلید Storage هرگز به مرورگر نمی‌رود.
++تصاویر از مسیر هم‌دامنهٔ `/api/media/:id` با کنترل دسترسی ارائه می‌شوند.
++عکس فعلی پروفایل و عکس پست منتشرشده برای اعضای واردشده دیده می‌شوند؛ عکس آپلودشدهٔ
++بدون پست فقط برای صاحب آن قابل مشاهده است. خصوصی‌بودن پروفایل جزئیات صفحهٔ پروفایل
++را پنهان می‌کند، ولی پستی که کاربر در Community منتشر کرده عمومیِ اعضای برنامه است.
++
++عکس‌های قبلی/آپلودهای استفاده‌نشده ممکن است در Storage باقی بمانند؛ برای نصب بزرگ‌تر
++یک سیاست پاک‌سازی دوره‌ای برای Media بدون مصرف در نظر بگیرید. فایل‌های کاربران دیگر
++و تصویرِ متصل به پست را نباید به عنوان فایل بدون مصرف حذف کرد.
++
++## بررسی انجام‌شده
++
++تست‌های دیتابیس موقت برای فالو/آنفالو، شمارنده‌ها، ذخیره‌ها، کامنت‌ها، صفحه‌بندی،
++پروفایل خصوصی و مالکیت تصاویر؛ تست تبدیل و محدودیت تصویر؛ TypeScript و build.
++دسترسی زنده به Storage و envهای Vercel شما در این محیط وجود ندارد؛ پس از setup، یک
++عکس آزمایشی در پروفایل و یک پست تصویری ثبت کنید و با حساب دوم آن‌ها را بررسی کنید.
+diff --git a/package-lock.json b/package-lock.json
+index 4b5ee382ca174e4d3af07544818d93c3f65af4cb..a900d926daf2736ee76860c7cdf9cff1498622d6 100644
+--- a/package-lock.json
++++ b/package-lock.json
+@@ -24,6 +24,7 @@
+         "react": "^19.2.0",
+         "react-dom": "^19.2.0",
+         "server-only": "^0.0.1",
++        "sharp": "0.35.5",
+         "stripe": "latest",
+         "superjson": "^2.2.0",
+         "tailwind-merge": "^3.0.0",
+@@ -832,7 +833,6 @@
+       "resolved": "https://registry.npmjs.org/@img/colour/-/colour-1.1.0.tgz",
+       "integrity": "sha512-Td76q7j57o/tLVdgS746cYARfSyxk8iEfRxewL9h4OMzYhbW4TAcppl0mT4eyqXddh6L/jwoM75mo7ixa/pCeQ==",
+       "license": "MIT",
+-      "optional": true,
+       "engines": {
+         "node": ">=18"
+       }
+@@ -2936,7 +2936,7 @@
+       "version": "19.3.0",
+       "resolved": "https://registry.npmjs.org/@types/react-dom/-/react-dom-19.3.0.tgz",
+       "integrity": "sha512-ZI7bU42mZXXKHn/qNLEw2IrbiINU7X5+vfgdixBHkCNpYWXjKgfQ/P+uyGb5CjOLB9UcnTeg3rylQtV2hym44Q==",
+-      "dev": true,
++      "devOptional": true,
+       "license": "MIT",
+       "peerDependencies": {
+         "@types/react": "^19.3.0"
+@@ -3692,7 +3692,6 @@
+       "version": "2.1.2",
+       "resolved": "https://registry.npmjs.org/detect-libc/-/detect-libc-2.1.2.tgz",
+       "integrity": "sha512-Btj2BOOO83o3WyH59e8MgXsxEQVcarkUOpEYrubB0urwnN10yQ364rsiByU11nZlqWYZm05i/of7io4mzihBtQ==",
+-      "devOptional": true,
+       "license": "Apache-2.0",
+       "engines": {
+         "node": ">=8"
+@@ -5388,7 +5387,6 @@
+       "resolved": "https://registry.npmjs.org/semver/-/semver-7.8.5.tgz",
+       "integrity": "sha512-Y7/KDsb8LjooZpwaqGyulO6DQlksgCncchHGk+sZIY4SBvUocMBEFH5Ur1fI4dV+Jvl0w6cjvucaIi40puRioA==",
+       "license": "ISC",
+-      "optional": true,
+       "bin": {
+         "semver": "bin/semver.js"
+       },
+@@ -5407,7 +5405,6 @@
+       "resolved": "https://registry.npmjs.org/sharp/-/sharp-0.35.5.tgz",
+       "integrity": "sha512-Ywn4OnzGukp7CDMrp08RQ50YKmuwG47brZgIVPTvBaaAfQlRlygrRqSrxdCiL9M+LlzLBiJ68IR1QqvzHyjC7g==",
+       "license": "Apache-2.0",
+-      "optional": true,
+       "dependencies": {
+         "@img/colour": "^1.1.0",
+         "detect-libc": "^2.1.2",
+diff --git a/package.json b/package.json
+index 8e5a8a6e2aff4edbb966d439bd2e72ed5f3a9ec7..d36fb43f0a7d4ac83ade00fe215992bc52f0e96c 100644
+--- a/package.json
++++ b/package.json
+@@ -15,7 +15,8 @@
+     "format": "prettier --write src prisma docs",
+     "dev:local": "node scripts/dev.mjs --local",
+     "db:import:first-lesson": "tsx prisma/import-dentigo-first-lesson.ts",
+-    "db:import:paths": "tsx prisma/import-reference-paths.ts"
++    "db:import:paths": "tsx prisma/import-reference-paths.ts",
++    "storage:setup": "tsx scripts/setup-storage.ts"
+   },
+   "dependencies": {
+     "@auth/prisma-adapter": "latest",
+@@ -37,7 +38,8 @@
+     "stripe": "latest",
+     "superjson": "^2.2.0",
+     "tailwind-merge": "^3.0.0",
+-    "zod": "^4.0.0"
++    "zod": "^4.0.0",
++    "sharp": "0.35.5"
+   },
+   "devDependencies": {
+     "@electric-sql/pglite": "^0.4.3",
+diff --git a/scripts/setup-storage.ts b/scripts/setup-storage.ts
+new file mode 100644
+index 0000000000000000000000000000000000000000..af2a3ad68bb747a4f20af4804f04cfeaa6d2ba4f
+--- /dev/null
++++ b/scripts/setup-storage.ts
+@@ -0,0 +1,63 @@
++import "./load-env";
++const raw = process.env.SUPABASE_URL,
++  key = process.env.SUPABASE_SERVICE_ROLE_KEY,
++  bucket = process.env.SUPABASE_MEDIA_BUCKET || "dentora-media";
++try {
++  if (!raw || !key)
++    throw new Error("SUPABASE_URL und SUPABASE_SERVICE_ROLE_KEY fehlen.");
++  const url = new URL(raw);
++  if (
++    url.protocol !== "https:" ||
++    url.username ||
++    url.password ||
++    !/^[a-z0-9-]+$/.test(bucket)
++  )
++    throw new Error("Ungültige Storage-Konfiguration.");
++  const base = `${url.origin}/storage/v1/bucket`,
++    headers = {
++      apikey: key,
++      Authorization: `Bearer ${key}`,
++      "Content-Type": "application/json",
++    };
++  const existing = await fetch(`${base}/${bucket}`, {
++    headers,
++    signal: AbortSignal.timeout(15000),
++  });
++  if (existing.ok) {
++    const data = await existing.json();
++    if (data.public)
++      throw new Error(
++        "Der vorhandene Bucket ist öffentlich. Bitte stelle ihn in Supabase auf Private.",
++      );
++    console.log("STORAGE_OK: Privater Bucket vorhanden.");
++  } else {
++    // Supabase can return 400 or 404 for an absent bucket; distinguish auth errors.
++    const detail = await existing.json().catch(() => ({}));
++    if (!["404", 404].includes(detail.statusCode) && existing.status !== 404)
++      throw new Error(
++        "Bucket konnte nicht geprüft werden. Prüfe URL und service_role-Schlüssel.",
++      );
++    const created = await fetch(base, {
++      method: "POST",
++      headers,
++      body: JSON.stringify({
++        id: bucket,
++        name: bucket,
++        public: false,
++        file_size_limit: 2097152,
++        allowed_mime_types: ["image/webp"],
++      }),
++      signal: AbortSignal.timeout(15000),
++    });
++    if (!created.ok)
++      throw new Error(
++        "Bucket konnte nicht erstellt werden. Prüfe die Storage-Konfiguration.",
++      );
++    console.log("STORAGE_OK: Privater Bucket dentora-media eingerichtet.");
++  }
++} catch (e) {
++  console.error(
++    e instanceof Error ? e.message : "Storage-Einrichtung fehlgeschlagen.",
++  );
++  process.exitCode = 1;
++}
+diff --git a/src/app/api/media/[id]/route.ts b/src/app/api/media/[id]/route.ts
+new file mode 100644
+index 0000000000000000000000000000000000000000..ecba5ddbf7138b4ae2b88987e9b0f8878ef917c0
+--- /dev/null
++++ b/src/app/api/media/[id]/route.ts
+@@ -0,0 +1,40 @@
++import { auth } from "@/server/auth";
++import { db } from "@/server/db";
++import { downloadObject } from "@/server/media/storage";
++export const runtime = "nodejs";
++export async function GET(
++  _request: Request,
++  { params }: { params: Promise<{ id: string }> },
++) {
++  const viewer = (await auth())?.user?.id;
++  if (!viewer) return new Response(null, { status: 401 });
++  const { id } = await params;
++  const media = await db.media.findUnique({
++    where: { id },
++    include: {
++      post: { select: { deletedAt: true } },
++      owner: { select: { image: true } },
++    },
++  });
++  // Unattached post images and replaced avatars are visible only to their owner.
++  const visible =
++    media &&
++    (media.ownerId === viewer ||
++      (media.status === "AVATAR" && media.owner.image === `/api/media/${id}`) ||
++      (media.status === "READY" && media.post && !media.post.deletedAt));
++  if (!visible) return new Response(null, { status: 404 });
++  try {
++    const response = await downloadObject(media.objectKey);
++    if (!response.ok) return new Response(null, { status: 404 });
++    return new Response(response.body, {
++      headers: {
++        "Content-Type": "image/webp",
++        "Cache-Control": "private, no-store",
++        "X-Content-Type-Options": "nosniff",
++        "Content-Disposition": "inline",
++      },
++    });
++  } catch {
++    return new Response(null, { status: 503 });
++  }
++}
+diff --git a/src/app/api/media/route.ts b/src/app/api/media/route.ts
+new file mode 100644
+index 0000000000000000000000000000000000000000..02c0de1824201a19af17ae7425d97885d5708578
+--- /dev/null
++++ b/src/app/api/media/route.ts
+@@ -0,0 +1,94 @@
++import { randomUUID } from "node:crypto";
++import { auth } from "@/server/auth";
++import { db } from "@/server/db";
++import { limit } from "@/server/rate-limit";
++import { isTrustedMutation } from "@/server/security/request-origin";
++import { MAX_UPLOAD_BYTES, prepareImage } from "@/server/media/image";
++import { uploadObject, deleteObject } from "@/server/media/storage";
++export const runtime = "nodejs";
++export const maxDuration = 30;
++const error = (message: string, status: number) =>
++  Response.json({ message }, { status });
++export async function POST(request: Request) {
++  if (!isTrustedMutation(request)) return error("Anfrage nicht erlaubt.", 403);
++  const session = await auth();
++  const userId = session?.user?.id;
++  if (!userId) return error("Bitte melde dich an.", 401);
++  if (!(await limit(`image:${userId}`, 12, 3600)))
++    return error("Zu viele Uploads. Bitte versuche es später erneut.", 429);
++  // Bound the stream itself, not just Content-Length (which may be omitted/forged).
++  const reader = request.body?.getReader();
++  if (!reader) return error("Bild fehlt.", 400);
++  const chunks: Uint8Array[] = [];
++  let length = 0;
++  while (true) {
++    const part = await reader.read();
++    if (part.done) break;
++    length += part.value.length;
++    if (length > MAX_UPLOAD_BYTES + 65536) {
++      await reader.cancel();
++      return error("Maximal 2 MB pro Bild.", 413);
++    }
++    chunks.push(part.value);
++  }
++  let form: FormData;
++  try {
++    form = await new Response(Buffer.concat(chunks), {
++      headers: { "Content-Type": request.headers.get("content-type") ?? "" },
++    }).formData();
++  } catch {
++    return error("Ungültiger Upload.", 400);
++  }
++  const file = form.get("file"),
++    purpose = form.get("purpose");
++  if (!(file instanceof File) || !["avatar", "post"].includes(String(purpose)))
++    return error("Bitte wähle ein gültiges Bild.", 400);
++  let bytes: Buffer;
++  try {
++    bytes = await prepareImage(
++      Buffer.from(await file.arrayBuffer()),
++      purpose as "avatar" | "post",
++    );
++  } catch {
++    return error(
++      "Bitte wähle ein gültiges JPG-, PNG- oder WebP-Bild (maximal 2 MB, 16 Megapixel).",
++      400,
++    );
++  }
++  const id = randomUUID(),
++    objectKey = `${encodeURIComponent(userId)}/${id}.webp`;
++  try {
++    await uploadObject(objectKey, bytes);
++  } catch (e) {
++    return error(
++      e instanceof Error ? e.message : "Upload fehlgeschlagen.",
++      503,
++    );
++  }
++  try {
++    await db.$transaction(async (tx) => {
++      await tx.media.create({
++        data: {
++          id,
++          ownerId: userId,
++          objectKey,
++          mimeType: "image/webp",
++          size: bytes.length,
++          status: purpose === "avatar" ? "AVATAR" : "READY",
++        },
++      });
++      if (purpose === "avatar")
++        await tx.user.update({
++          where: { id: userId },
++          data: { image: `/api/media/${id}` },
++        });
++    });
++    return Response.json({ id, url: `/api/media/${id}` }, { status: 201 });
++  } catch {
++    await deleteObject(objectKey).catch(() => {});
++    return error(
++      "Das Bild konnte nicht zugeordnet werden. Bitte versuche es erneut.",
++      503,
++    );
++  }
++}
+diff --git a/src/app/mobile.css b/src/app/mobile.css
+index d18589d2b392b9878832401479aef4e6a3ce8802..329d287e9340d368ee56c0403c40afa75f68fcae 100644
+--- a/src/app/mobile.css
++++ b/src/app/mobile.css
+@@ -47,7 +47,7 @@ body {
+   display: flex;
+   align-items: center;
+   gap: 3px;
+-  font-size: 11px;
++  font-size: 12px;
+   font-weight: 700;
+ }
+ .mobile-counters a:last-child {
+@@ -76,7 +76,7 @@ body {
+   flex-direction: column;
+   gap: 3px;
+   color: #92869d;
+-  font-size: 10px;
++  font-size: 12px;
+   font-weight: 600;
+   min-width: 60px;
+ }
+@@ -120,7 +120,7 @@ body {
+   display: none;
+ }
+ .mobile-shell .eyebrow {
+-  font-size: 8px;
++  font-size: 12px;
+   letter-spacing: 1.5px;
+   color: #9a88ab;
+ }
+@@ -140,11 +140,11 @@ body {
+   margin: 14px 0;
+ }
+ .mobile-shell .hero-label {
+-  font-size: 6.5px;
++  font-size: 12px;
+   letter-spacing: 1.1px;
+ }
+ .mobile-shell .hero p {
+-  font-size: 11px;
++  font-size: 12px;
+   max-width: 210px;
+ }
+ .mobile-shell .hero .button {
+@@ -194,12 +194,12 @@ body {
+   font-size: 14px;
+ }
+ .mobile-shell .course-summary .eyebrow {
+-  font-size: 7px;
++  font-size: 12px;
+   letter-spacing: 1px;
+ }
+ .mobile-shell .progress-row {
+   max-width: none;
+-  font-size: 10px;
++  font-size: 12px;
+ }
+ .mobile-shell .chapter-heading {
+   gap: 10px;
+@@ -235,7 +235,7 @@ body {
+   line-height: 1.5;
+ }
+ .mobile-shell .lesson-row .small {
+-  font-size: 9px;
++  font-size: 12px;
+   color: #998ba3;
+ }
+ .mobile-shell .lesson-row.current {
+@@ -244,11 +244,11 @@ body {
+ }
+ .mobile-shell .compact {
+   padding: 10px 8px;
+-  font-size: 10px;
++  font-size: 12px;
+   min-height: 40px;
+ }
+ .mobile-shell .lesson-row .text-link {
+-  font-size: 9px;
++  font-size: 12px;
+   gap: 3px;
+ }
+ .mobile-shell .right-rail {
+@@ -327,7 +327,7 @@ body {
+ .mobile-shell .ranking-head {
+   grid-template-columns: 25px 1fr 70px;
+   padding: 10px 0;
+-  font-size: 8px;
++  font-size: 12px;
+   gap: 10px;
+ }
+ .mobile-shell .ranking-row > span {
+@@ -361,7 +361,7 @@ body {
+   flex: 1;
+ }
+ .mobile-shell .demo-notice {
+-  font-size: 9px;
++  font-size: 12px;
+   justify-content: space-between;
+   padding: 8px 20px;
+ }
+@@ -395,7 +395,7 @@ body {
+ .profile-menu small {
+   display: block;
+   color: #9b8da5;
+-  font-size: 10px;
++  font-size: 12px;
+   margin-top: 3px;
+ }
+ .profile-menu > a > span {
+@@ -441,7 +441,7 @@ body {
+   font-size: 14px;
+ }
+ .mobile-auth form small {
+-  font-size: 11px;
++  font-size: 12px;
+   line-height: 1.6;
+ }
+ .mobile-shell .skip {
+@@ -481,7 +481,7 @@ body {
+   }
+   .mobile-navigation a {
+     min-width: 52px;
+-    font-size: 9px;
++    font-size: 12px;
+   }
+ }
+ .mobile-shell .lesson-tools > div:first-child {
+@@ -491,7 +491,7 @@ body {
+   padding: 0 0 16px;
+ }
+ .mobile-shell .lesson-tools .button {
+-  font-size: 10px;
++  font-size: 12px;
+   padding: 6px 8px;
+   min-height: 40px;
+ }
+@@ -501,6 +501,31 @@ body {
+   white-space: nowrap;
+ }
+ .mobile-shell .tabs button {
+-  font-size: 11px;
++  font-size: 12px;
+   flex-shrink: 0;
+ }
++
++/* Readable learner text; admin panel styling stays independent. */
++.mobile-shell {
++  font-weight: 500;
++}
++.mobile-shell .small,
++.mobile-shell small {
++  font-size: 12px;
++  font-weight: 550;
++}
++.mobile-shell .muted {
++  color: #85758f;
++}
++.mobile-shell .lesson-card p {
++  font-size: 16px;
++  line-height: 1.85;
++}
++.mobile-shell .lesson-tools .button {
++  font-size: 12px;
++  font-weight: 650;
++}
++.mobile-shell .tabs button {
++  font-size: 13px;
++  font-weight: 700;
++}
+diff --git a/src/components/ui/avatar.module.css b/src/components/ui/avatar.module.css
+new file mode 100644
+index 0000000000000000000000000000000000000000..62eedad53f40f3d32103843cd001dad7dfcf4d9b
+--- /dev/null
++++ b/src/components/ui/avatar.module.css
+@@ -0,0 +1,21 @@
++.avatar {
++  display: inline-flex;
++  flex-shrink: 0;
++  align-items: center;
++  justify-content: center;
++  border-radius: 28%;
++  overflow: hidden;
++  background: linear-gradient(145deg, #f1e6ff, #d9c2f5);
++  color: #7349a5;
++  font-size: 16px;
++  font-weight: 800;
++  vertical-align: middle;
++}
++.avatar img {
++  width: 100%;
++  height: 100%;
++  object-fit: cover;
++}
++.avatar > span {
++  padding: 5px;
++}
+diff --git a/src/components/ui/avatar.tsx b/src/components/ui/avatar.tsx
+new file mode 100644
+index 0000000000000000000000000000000000000000..4987b6e934689c80d410ecb1532cb52563ddd01b
+--- /dev/null
++++ b/src/components/ui/avatar.tsx
+@@ -0,0 +1,30 @@
++"use client";
++import { useEffect, useState } from "react";
++import styles from "./avatar.module.css";
++export function Avatar({
++  image,
++  name,
++  size = 44,
++}: {
++  image?: string | null;
++  name?: string | null;
++  size?: number;
++}) {
++  const [failed, setFailed] = useState(false);
++  useEffect(() => setFailed(false), [image]);
++  return (
++    <span className={styles.avatar} style={{ width: size, height: size }}>
++      {image && !failed ? (
++        <img
++          src={image}
++          alt={name ? `Profilbild von ${name}` : "Profilbild"}
++          onError={() => setFailed(true)}
++        />
++      ) : (
++        <span aria-label="Kein Profilbild">
++          {(name?.trim() || "D").slice(0, 2).toLocaleUpperCase("de")}
++        </span>
++      )}
++    </span>
++  );
++}
+diff --git a/src/features/community/comments.tsx b/src/features/community/comments.tsx
+index 88015298ca5cdfa1c0743a6e107c9d954d55447e..3fa34f8886b7d57486e5675506de0979bea05b8e 100644
+--- a/src/features/community/comments.tsx
++++ b/src/features/community/comments.tsx
+@@ -1,45 +1,86 @@
+ "use client";
++import Link from "next/link";
+ import { useState } from "react";
+-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
++import { useMutation, useInfiniteQuery } from "@tanstack/react-query";
+ import { useTRPC } from "@/trpc/provider";
+-import { useAction } from "@/hooks/use-action";
+-import { Button } from "@/components/ui/button";
++import { Avatar } from "@/components/ui/avatar";
++import { Loading, ErrorNotice } from "@/components/ui/feedback";
++import { profileHref } from "./profile-link";
++import { useSocialRefresh } from "./use-social-refresh";
++import styles from "./community.module.css";
+ export function Comments({ postId }: { postId: string }) {
+   const api = useTRPC(),
+-    cache = useQueryClient(),
+-    action = useAction();
+-  const [body, setBody] = useState("");
+-  const comments = useQuery(api.social.comments.queryOptions({ postId })),
+-    create = useMutation(api.social.comment.mutationOptions());
++    refresh = useSocialRefresh(),
++    [body, setBody] = useState("");
++  const comments = useInfiniteQuery(
++    api.social.comments.infiniteQueryOptions(
++      { postId },
++      { getNextPageParam: (page) => page.nextCursor },
++    ),
++  );
++  const create = useMutation(
++    api.social.comment.mutationOptions({
++      onSuccess: async () => {
++        setBody("");
++        await refresh();
++      },
++    }),
++  );
+   return (
+-    <div className="comments">
+-      {comments.data?.map((c) => (
+-        <p key={c.id}>
+-          <strong>{c.author.name}</strong>
+-          <br />
+-          {c.body}
+-        </p>
+-      ))}
+-      <label htmlFor={`comment-${postId}`}>Dein Kommentar</label>
+-      <textarea
+-        id={`comment-${postId}`}
+-        value={body}
+-        maxLength={5000}
+-        onChange={(e) => setBody(e.target.value)}
+-      />
+-      <Button
+-        disabled={!body.trim() || action.pending}
+-        onClick={() =>
+-          action.run(async () => {
+-            await create.mutateAsync({ postId, body });
+-            setBody("");
+-            await cache.invalidateQueries({ queryKey: api.social.pathKey() });
+-          })
+-        }
++    <section className={styles.comments} aria-label="Kommentare">
++      <form
++        onSubmit={(e) => {
++          e.preventDefault();
++          create.mutate({ postId, body });
++        }}
+       >
+-        Kommentieren
+-      </Button>
+-      <p role="status">{action.message}</p>
+-    </div>
++        <label htmlFor={`comment-${postId}`}>Dein Kommentar</label>
++        <textarea
++          id={`comment-${postId}`}
++          value={body}
++          maxLength={5000}
++          onChange={(e) => setBody(e.target.value)}
++          rows={2}
++        />
++        <button
++          className="button primary compact"
++          disabled={!body.trim() || create.isPending}
++        >
++          {create.isPending ? "Wird gesendet …" : "Kommentieren"}
++        </button>
++        {create.error && <p role="alert">{create.error.message}</p>}
++      </form>
++      {comments.isPending ? (
++        <Loading />
++      ) : comments.error ? (
++        <ErrorNotice message={comments.error.message} />
++      ) : (
++        comments.data.pages
++          .flatMap((p) => p.items)
++          .map((c) => (
++            <article className={styles.comment} key={c.id}>
++              <Link href={profileHref(c.author)}>
++                <Avatar image={c.author.image} name={c.author.name} size={32} />
++              </Link>
++              <div>
++                <Link href={profileHref(c.author)}>
++                  <strong>{c.author.name || "Dentora Mitglied"}</strong>
++                </Link>
++                <p>{c.body}</p>
++                <time>{c.createdAt.toLocaleDateString("de-DE")}</time>
++              </div>
++            </article>
++          ))
++      )}
++      {comments.hasNextPage && (
++        <button
++          className="button secondary"
++          disabled={comments.isFetchingNextPage}
++          onClick={() => comments.fetchNextPage()}
++        >
++          Weitere Kommentare
++        </button>
++      )}
++    </section>
+   );
+ }
+diff --git a/src/features/community/community-page.tsx b/src/features/community/community-page.tsx
+index 2067b37b35f9fa8302be36e72f099cca053fa21c..ae149f59dcda76c149e3e99178732071a172645f 100644
+--- a/src/features/community/community-page.tsx
++++ b/src/features/community/community-page.tsx
+@@ -1,161 +1,87 @@
+ "use client";
+-import { useState } from "react";
+-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+-import { Heart, MessageCircle, Bookmark, Send } from "lucide-react";
+-import { useTRPC } from "@/trpc/provider";
+-import { useAction } from "@/hooks/use-action";
+-import { Card } from "@/components/ui/card";
+-import { Button } from "@/components/ui/button";
+-import { PageHeading } from "@/components/ui/page-heading";
+-import { Loading, ErrorNotice, Empty } from "@/components/ui/feedback";
+-import { Comments } from "./comments";
++import { useState, useRef, useEffect } from "react";
++import { useSearchParams } from "next/navigation";
++import { Plus, Search } from "lucide-react";
++import { PostFeed } from "./components/post-feed";
++import { PostComposer } from "./components/post-composer";
++import styles from "./community.module.css";
+ export function CommunityPage() {
+-  const api = useTRPC(),
+-    cache = useQueryClient(),
+-    action = useAction();
+-  const [body, setBody] = useState(""),
+-    [search, setSearch] = useState(""),
+-    [filter, setFilter] = useState<"all" | "mine" | "saved">("all"),
+-    [open, setOpen] = useState<string>();
+-  const feed = useQuery(api.social.feed.queryOptions({ filter, search }));
+-  const create = useMutation(api.social.create.mutationOptions()),
+-    like = useMutation(api.social.like.mutationOptions()),
+-    save = useMutation(api.social.save.mutationOptions());
+-  async function refresh() {
+-    await cache.invalidateQueries({ queryKey: api.social.pathKey() });
+-  }
++  const params = useSearchParams();
++  const [filter, setFilter] = useState<"all" | "mine" | "saved">(
++    params.get("filter") === "mine"
++      ? "mine"
++      : params.get("filter") === "saved"
++        ? "saved"
++        : "all",
++  );
++  const [search, setSearch] = useState(""),
++    [query, setQuery] = useState(""),
++    [compose, setCompose] = useState(false);
++  const editor = useRef<HTMLDivElement>(null);
++  useEffect(() => {
++    const timer = setTimeout(() => setQuery(search), 250);
++    return () => clearTimeout(timer);
++  }, [search]);
++  useEffect(() => {
++    if (compose)
++      editor.current?.scrollIntoView({ block: "start", behavior: "smooth" });
++  }, [compose]);
+   return (
+-    <>
+-      <PageHeading
+-        eyebrow="WISSEN VERBINDET"
+-        title="Deine Community"
+-        description="Gedanken teilen. Fragen stellen. Gemeinsam weiterkommen."
+-      />
+-      <div className="narrow">
+-        <Card>
+-          <label htmlFor="post">Was hast du heute gelernt?</label>
+-          <textarea
+-            id="post"
+-            value={body}
+-            onChange={(e) => setBody(e.target.value)}
+-            maxLength={5000}
+-            placeholder="Teile einen Gedanken mit der Community …"
+-          />
+-          <div className="section-top">
+-            <small className="muted">
+-              {body.length}/5000 · Keine Patientendaten teilen
+-            </small>
+-            <Button
+-              disabled={!body.trim() || action.pending}
+-              onClick={() =>
+-                action.run(async () => {
+-                  await create.mutateAsync({ body });
+-                  setBody("");
+-                  await refresh();
+-                }, "Dein Beitrag wurde veröffentlicht.")
+-              }
+-            >
+-              <Send size={16} />
+-              Veröffentlichen
+-            </Button>
+-          </div>
+-        </Card>
+-        {action.message && (
+-          <p role="status" className="notice">
+-            {action.message}
+-          </p>
+-        )}
+-        <div className="section-top">
+-          <select
+-            aria-label="Beiträge filtern"
+-            value={filter}
+-            onChange={(e) => setFilter(e.target.value as typeof filter)}
++    <div className={styles.community}>
++      <header className={styles.title}>
++        <span>GEMEINSAM WEITER</span>
++        <h1>Community</h1>
++      </header>
++      <div className={styles.tabs} role="tablist" aria-label="Beiträge filtern">
++        {(
++          [
++            ["all", "Neueste"],
++            ["mine", "Meine Beiträge"],
++            ["saved", "Gespeichert"],
++          ] as const
++        ).map(([value, label]) => (
++          <button
++            key={value}
++            role="tab"
++            aria-selected={filter === value}
++            onClick={() => setFilter(value)}
+           >
+-            <option value="all">Alle Beiträge</option>
+-            <option value="mine">Meine Beiträge</option>
+-            <option value="saved">Gespeichert</option>
+-          </select>
+-          <input
+-            aria-label="Beiträge suchen"
+-            value={search}
+-            onChange={(e) => setSearch(e.target.value)}
+-            placeholder="Community durchsuchen …"
+-          />
+-        </div>
+-        {feed.isPending ? (
+-          <Loading />
+-        ) : feed.error ? (
+-          <ErrorNotice message={feed.error.message} />
+-        ) : feed.data.items.length === 0 ? (
+-          <Empty
+-            title="Hier beginnt ein Gespräch"
+-            description="Teile den ersten Gedanken oder passe deine Suche an."
++            {label}
++          </button>
++        ))}
++      </div>
++      <label className={styles.search}>
++        <Search size={18} />
++        <input
++          aria-label="Beiträge durchsuchen"
++          placeholder="Beiträge durchsuchen …"
++          value={search}
++          onChange={(e) => setSearch(e.target.value)}
++        />
++      </label>
++      <div ref={editor}>
++        {compose && (
++          <PostComposer
++            onClose={() => setCompose(false)}
++            onPublished={() => {
++              setFilter("mine");
++              setSearch("");
++              setQuery("");
++              setCompose(false);
++            }}
+           />
+-        ) : (
+-          feed.data.items.map((post) => (
+-            <Card key={post.id} className="post">
+-              <div className="post-author">
+-                <span className="avatar">
+-                  {(post.author.name ?? "D").slice(0, 2)}
+-                </span>
+-                <div>
+-                  <strong>{post.author.name ?? "Dentora Mitglied"}</strong>
+-                  <small>{post.createdAt.toLocaleDateString("de-DE")}</small>
+-                </div>
+-              </div>
+-              <p className="post-body">{post.body}</p>
+-              <div className="post-actions">
+-                <Button
+-                  variant="ghost"
+-                  onClick={() =>
+-                    action.run(async () => {
+-                      await like.mutateAsync({
+-                        postId: post.id,
+-                        liked: !post.likes.length,
+-                      });
+-                      await refresh();
+-                    }, "")
+-                  }
+-                >
+-                  <Heart
+-                    size={18}
+-                    fill={post.likes.length ? "currentColor" : "none"}
+-                  />
+-                  {post._count.likes}
+-                </Button>
+-                <Button
+-                  variant="ghost"
+-                  onClick={() =>
+-                    setOpen(open === post.id ? undefined : post.id)
+-                  }
+-                >
+-                  <MessageCircle size={18} />
+-                  {post._count.comments}
+-                </Button>
+-                <Button
+-                  variant="ghost"
+-                  aria-label="Beitrag speichern"
+-                  onClick={() =>
+-                    action.run(async () => {
+-                      await save.mutateAsync({
+-                        postId: post.id,
+-                        saved: !post.bookmarks.length,
+-                      });
+-                      await refresh();
+-                    }, "")
+-                  }
+-                >
+-                  <Bookmark
+-                    size={18}
+-                    fill={post.bookmarks.length ? "currentColor" : "none"}
+-                  />
+-                </Button>
+-              </div>
+-              {open === post.id && <Comments postId={post.id} />}
+-            </Card>
+-          ))
+         )}
+       </div>
+-    </>
++      <PostFeed filter={filter} search={query} />
++      {!compose && (
++        <button
++          className={styles.createButton}
++          onClick={() => setCompose(true)}
++          aria-label="Beitrag erstellen"
++        >
++          <Plus size={28} />
++        </button>
++      )}
++    </div>
+   );
+ }
+diff --git a/src/features/community/community.module.css b/src/features/community/community.module.css
+new file mode 100644
+index 0000000000000000000000000000000000000000..1f99da49074b6e9ccac035e50c3f8e05f3fac931
+--- /dev/null
++++ b/src/features/community/community.module.css
+@@ -0,0 +1,356 @@
++.community {
++  max-width: 480px;
++  margin: auto;
++}
++.title {
++  margin: 6px 0 20px;
++}
++.title > span {
++  font-size: 12px;
++  color: #8b719f;
++  font-weight: 700;
++  letter-spacing: 0.07em;
++}
++.title h1 {
++  font-size: 28px;
++  color: #49305e;
++  margin: 7px 0;
++}
++.tabs {
++  display: flex;
++  border-bottom: 1px solid #e8deef;
++  gap: 5px;
++  background: #fff;
++  padding: 4px;
++  border-radius: 14px 14px 0 0;
++}
++.tabs button {
++  flex: 1;
++  min-height: 48px;
++  border: 0;
++  border-bottom: 3px solid transparent;
++  background: none;
++  font-size: 13px;
++  font-weight: 700;
++  color: #8a7a96;
++  padding: 8px 4px;
++  cursor: pointer;
++}
++.tabs button[aria-selected="true"] {
++  border-color: #8853d0;
++  color: #7742b7;
++}
++.search {
++  display: flex;
++  align-items: center;
++  gap: 9px;
++  background: white;
++  border: 1px solid #ece4f3;
++  border-radius: 13px;
++  padding: 0 12px;
++  margin: 14px 0 18px;
++  color: #907ca2;
++}
++.search input {
++  border: 0 !important;
++  margin: 0;
++  background: transparent !important;
++  min-width: 0;
++}
++.post {
++  background: #fff;
++  border: 1px solid #eae2f1;
++  border-radius: 19px;
++  overflow: hidden;
++  margin-bottom: 18px;
++  box-shadow: 0 5px 18px #5a397205;
++}
++.author {
++  display: flex;
++  gap: 9px;
++  align-items: center;
++  padding: 15px;
++  background: #faf7fe;
++  border-bottom: 1px solid #f0e9f6;
++}
++.authorIdentity {
++  display: flex;
++  gap: 10px;
++  align-items: center;
++  flex: 1;
++  min-width: 0;
++  text-decoration: none;
++  color: #513764;
++}
++.authorIdentity > span:last-child {
++  min-width: 0;
++}
++.author strong {
++  font-size: 14px;
++  display: block;
++  overflow-wrap: anywhere;
++}
++.author small,
++.author time {
++  display: block;
++  font-size: 12px;
++  color: #91829b;
++  line-height: 1.5;
++  font-weight: 500;
++}
++.follow button {
++  border: 1px solid #d9c3ee;
++  border-radius: 10px;
++  background: #f5edff;
++  color: #7c49b5;
++  padding: 8px 10px;
++  min-height: 38px;
++  font-size: 12px;
++  font-weight: 700;
++  cursor: pointer;
++  white-space: nowrap;
++}
++.follow button[aria-pressed="true"] {
++  background: white;
++  color: #806d8f;
++}
++.follow small {
++  display: block;
++  font-size: 12px;
++  max-width: 120px;
++  color: #b43b58;
++}
++.body {
++  padding: 17px 18px;
++}
++.body p {
++  white-space: pre-wrap;
++  overflow-wrap: anywhere;
++  color: #43324f;
++  font-size: 16px !important;
++  font-weight: 500;
++  line-height: 1.9 !important;
++  margin: 0;
++}
++.body button {
++  display: block;
++  margin-top: 12px;
++  border: 0;
++  background: transparent;
++  color: #8a4cc5;
++  font-weight: 700;
++  font-size: 13px;
++  cursor: pointer;
++}
++.postImage {
++  width: 100%;
++  max-height: 520px;
++  object-fit: contain;
++  display: block;
++  background: #f5f1f8;
++}
++.actions {
++  display: flex;
++  align-items: center;
++  gap: 8px;
++  padding: 12px 14px;
++}
++.actions > div {
++  display: flex;
++  gap: 5px;
++  margin-left: auto;
++  background: #f7f3fc;
++  border-radius: 13px;
++}
++.actions button {
++  display: flex;
++  align-items: center;
++  gap: 7px;
++  background: #f7f3fc;
++  border: 0;
++  border-radius: 12px;
++  min-height: 42px;
++  min-width: 42px;
++  justify-content: center;
++  padding: 9px;
++  color: #81738d;
++  font-weight: 600;
++  cursor: pointer;
++}
++.actions button[aria-pressed="true"] {
++  color: #9852cc;
++  background: #f0e3fb;
++}
++.createButton {
++  position: fixed;
++  z-index: 35;
++  bottom: 108px;
++  left: max(18px, calc(50% - 214px));
++  width: 58px;
++  height: 58px;
++  border-radius: 50%;
++  display: grid;
++  place-items: center;
++  background: linear-gradient(135deg, #ac76e9, #7944c9);
++  border: 3px solid #fff;
++  color: #fff;
++  box-shadow: 0 7px 20px #7944c94d;
++  cursor: pointer;
++}
++.composer {
++  background: white;
++  border: 1px solid #e5d7f2;
++  border-radius: 18px;
++  padding: 18px;
++  margin-bottom: 20px;
++  scroll-margin-top: 85px;
++}
++.editorHeading {
++  display: flex;
++  justify-content: space-between;
++  align-items: center;
++  gap: 8px;
++}
++.editorHeading h2 {
++  font-size: 17px;
++  color: #5b3b74;
++}
++.editorHeading button {
++  border: 0;
++  background: #f6f0fc;
++  border-radius: 9px;
++  color: #8f71a6;
++  width: 36px;
++  height: 36px;
++  cursor: pointer;
++}
++.composer label,
++.comments label {
++  font-size: 14px;
++  font-weight: 600;
++  display: block;
++  margin-top: 12px;
++}
++.composer textarea,
++.comments textarea {
++  width: 100%;
++  font: inherit;
++  font-size: 16px;
++  line-height: 1.65;
++  padding: 12px;
++}
++.editorActions {
++  display: flex;
++  flex-wrap: wrap;
++  gap: 12px;
++  align-items: center;
++  justify-content: space-between;
++  margin: 12px 0;
++}
++.attach {
++  position: relative;
++  display: flex !important;
++  align-items: center;
++  gap: 7px;
++  font-size: 13px !important;
++  color: #8851bb;
++  cursor: pointer;
++  margin: 0 !important;
++}
++.attach input {
++  position: absolute;
++  width: 100%;
++  height: 100%;
++  inset: 0;
++  opacity: 0;
++  cursor: pointer;
++}
++.attach:focus-within {
++  outline: 3px solid #d3b1f3;
++  outline-offset: 4px;
++}
++.composer small {
++  font-size: 12px;
++  font-weight: 500;
++  color: #95869e;
++}
++.imagePreview {
++  position: relative;
++}
++.imagePreview img {
++  width: 100%;
++  max-height: 280px;
++  object-fit: contain;
++  border-radius: 12px;
++  background: #f6f1fa;
++}
++.imagePreview button {
++  position: absolute;
++  right: 7px;
++  top: 7px;
++  border: 0;
++  padding: 7px;
++  border-radius: 50%;
++  background: white;
++  color: #7d4c9e;
++}
++.comments {
++  border-top: 1px solid #eee5f4;
++  background: #fcfaff;
++  padding: 16px;
++}
++.comment {
++  display: flex;
++  gap: 9px;
++  margin-top: 20px;
++}
++.comment > div {
++  min-width: 0;
++}
++.comment strong {
++  font-size: 13px;
++  color: #715380;
++}
++.comment p {
++  font-size: 14px !important;
++  line-height: 1.7;
++  white-space: pre-wrap;
++  overflow-wrap: anywhere;
++  margin: 5px 0;
++}
++.comment time {
++  font-size: 12px;
++  color: #a496ae;
++}
++.error {
++  color: #b03955 !important;
++  background: #fff0f4;
++  padding: 12px;
++  font-size: 13px !important;
++}
++.deleteConfirm {
++  padding: 12px 16px;
++  background: #fff4f5;
++}
++.deleteConfirm p {
++  font-size: 14px;
++}
++.deleteConfirm button {
++  padding: 8px 12px;
++  background: white;
++  color: #b13c57;
++  border: 1px solid #f3ced5;
++  border-radius: 9px;
++  margin-right: 8px;
++  cursor: pointer;
++}
++.community button:focus-visible,
++.post button:focus-visible {
++  outline: 3px solid #bc93e2;
++  outline-offset: 3px;
++}
++.community button:disabled,
++.post button:disabled {
++  opacity: 0.5;
++  cursor: wait;
++}
+diff --git a/src/features/community/components/follow-button.tsx b/src/features/community/components/follow-button.tsx
+new file mode 100644
+index 0000000000000000000000000000000000000000..8227e021d8d99fb69164f2b94e43cf861f147864
+--- /dev/null
++++ b/src/features/community/components/follow-button.tsx
+@@ -0,0 +1,37 @@
++"use client";
++import { useMutation } from "@tanstack/react-query";
++import { useTRPC } from "@/trpc/provider";
++import { useSocialRefresh } from "../use-social-refresh";
++import styles from "../community.module.css";
++export function FollowButton({
++  userId,
++  following,
++  isSelf = false,
++}: {
++  userId: string;
++  following: boolean;
++  isSelf?: boolean;
++}) {
++  const api = useTRPC(),
++    refresh = useSocialRefresh();
++  const mutation = useMutation(
++    api.social.follow.mutationOptions({
++      onSuccess: async () => {
++        await refresh();
++      },
++    }),
++  );
++  if (isSelf) return null;
++  return (
++    <div className={styles.follow}>
++      <button
++        disabled={mutation.isPending}
++        aria-pressed={following}
++        onClick={() => mutation.mutate({ userId, follow: !following })}
++      >
++        {mutation.isPending ? "…" : following ? "Entfolgen" : "+ Folgen"}
++      </button>
++      {mutation.error && <small role="alert">{mutation.error.message}</small>}
++    </div>
++  );
++}
+diff --git a/src/features/community/components/post-card.tsx b/src/features/community/components/post-card.tsx
+new file mode 100644
+index 0000000000000000000000000000000000000000..11686e811af7f01c9f5fb717b7f9c972125fb1b3
+--- /dev/null
++++ b/src/features/community/components/post-card.tsx
+@@ -0,0 +1,147 @@
++"use client";
++import Link from "next/link";
++import { useState } from "react";
++import { useMutation } from "@tanstack/react-query";
++import type { inferRouterOutputs } from "@trpc/server";
++import type { AppRouter } from "@/server/routers";
++import { Heart, Bookmark, MessageCircle, Trash2 } from "lucide-react";
++import { Avatar } from "@/components/ui/avatar";
++import { useTRPC } from "@/trpc/provider";
++import { Comments } from "../comments";
++import { FollowButton } from "./follow-button";
++import { profileHref } from "../profile-link";
++import { useSocialRefresh } from "../use-social-refresh";
++import styles from "../community.module.css";
++export type FeedPost =
++  inferRouterOutputs<AppRouter>["social"]["feed"]["items"][number];
++export function PostCard({
++  post,
++  viewerId,
++}: {
++  post: FeedPost;
++  viewerId: string;
++}) {
++  const [expanded, setExpanded] = useState(false),
++    [comments, setComments] = useState(false),
++    [confirmDelete, setConfirmDelete] = useState(false);
++  const api = useTRPC(),
++    refresh = useSocialRefresh();
++  const options = {
++    onSuccess: async () => {
++      await refresh();
++    },
++  };
++  const like = useMutation(api.social.like.mutationOptions(options)),
++    save = useMutation(api.social.save.mutationOptions(options)),
++    remove = useMutation(api.social.remove.mutationOptions(options));
++  const liked = !!post.likes.length,
++    saved = !!post.bookmarks.length,
++    error = like.error || save.error || remove.error;
++  return (
++    <article className={styles.post}>
++      <header className={styles.author}>
++        <Link className={styles.authorIdentity} href={profileHref(post.author)}>
++          <Avatar image={post.author.image} name={post.author.name} />
++          <span>
++            <strong>{post.author.name || "Dentora Mitglied"}</strong>
++            <small>{post.author.university || "Dentora Community"}</small>
++            <time dateTime={post.createdAt.toISOString()}>
++              {post.createdAt.toLocaleDateString("de-DE", {
++                day: "numeric",
++                month: "short",
++              })}
++            </time>
++          </span>
++        </Link>
++        <FollowButton
++          userId={post.authorId}
++          following={!!post.author.follow_following.length}
++          isSelf={viewerId === post.authorId}
++        />
++      </header>
++      {post.body && (
++        <div className={styles.body}>
++          <p>
++            {expanded || post.body.length <= 350
++              ? post.body
++              : post.body.slice(0, 350) + " …"}
++          </p>
++          {post.body.length > 350 && (
++            <button
++              onClick={() => setExpanded(!expanded)}
++              aria-expanded={expanded}
++            >
++              {expanded ? "Weniger anzeigen" : "Mehr anzeigen"}
++            </button>
++          )}
++        </div>
++      )}
++      {post.media_post.map((media) => (
++        <img
++          key={media.id}
++          className={styles.postImage}
++          src={`/api/media/${media.id}`}
++          alt="Bild zum Beitrag"
++          loading="lazy"
++        />
++      ))}
++      <div className={styles.actions}>
++        <button
++          aria-label={
++            saved ? "Beitrag nicht mehr speichern" : "Beitrag speichern"
++          }
++          aria-pressed={saved}
++          disabled={save.isPending}
++          onClick={() => save.mutate({ postId: post.id, saved: !saved })}
++        >
++          <Bookmark size={20} fill={saved ? "currentColor" : "none"} />
++        </button>
++        <div>
++          <button
++            aria-label={`${post._count.comments} Kommentare anzeigen`}
++            aria-expanded={comments}
++            onClick={() => setComments(!comments)}
++          >
++            <MessageCircle size={20} />
++            {post._count.comments}
++          </button>
++          <button
++            aria-label={liked ? "Gefällt mir zurücknehmen" : "Gefällt mir"}
++            aria-pressed={liked}
++            disabled={like.isPending}
++            onClick={() => like.mutate({ postId: post.id, liked: !liked })}
++          >
++            <Heart size={20} fill={liked ? "currentColor" : "none"} />
++            {post._count.likes}
++          </button>
++        </div>
++        {viewerId === post.authorId && (
++          <button
++            aria-label="Beitrag löschen"
++            onClick={() => setConfirmDelete(!confirmDelete)}
++          >
++            <Trash2 size={17} />
++          </button>
++        )}
++      </div>
++      {confirmDelete && (
++        <div className={styles.deleteConfirm}>
++          <p>Diesen Beitrag entfernen?</p>
++          <button
++            disabled={remove.isPending}
++            onClick={() => remove.mutate({ id: post.id })}
++          >
++            Entfernen
++          </button>
++          <button onClick={() => setConfirmDelete(false)}>Abbrechen</button>
++        </div>
++      )}
++      {error && (
++        <p className={styles.error} role="alert">
++          {error.message}
++        </p>
++      )}
++      {comments && <Comments postId={post.id} />}
++    </article>
++  );
++}
+diff --git a/src/features/community/components/post-composer.tsx b/src/features/community/components/post-composer.tsx
+new file mode 100644
+index 0000000000000000000000000000000000000000..b9728e71f2880be1fcb2fbd6d2914d356ef05666
+--- /dev/null
++++ b/src/features/community/components/post-composer.tsx
+@@ -0,0 +1,105 @@
++"use client";
++import { useState } from "react";
++import { useMutation } from "@tanstack/react-query";
++import { ImagePlus, Send, X } from "lucide-react";
++import { useTRPC } from "@/trpc/provider";
++import { useImageUpload } from "@/features/media/use-image-upload";
++import { useSocialRefresh } from "../use-social-refresh";
++import styles from "../community.module.css";
++export function PostComposer({
++  onClose,
++  onPublished,
++}: {
++  onClose: () => void;
++  onPublished: () => void;
++}) {
++  const [body, setBody] = useState(""),
++    [media, setMedia] = useState<{ id: string; url: string } | null>(null);
++  const api = useTRPC(),
++    refresh = useSocialRefresh(),
++    upload = useImageUpload("post");
++  const create = useMutation(
++    api.social.create.mutationOptions({
++      onSuccess: async () => {
++        setBody("");
++        setMedia(null);
++        await refresh();
++        onPublished();
++      },
++    }),
++  );
++  const busy = create.isPending || upload.isPending;
++  return (
++    <section className={styles.composer} aria-label="Neuen Beitrag erstellen">
++      <div className={styles.editorHeading}>
++        <h2>Was möchtest du teilen?</h2>
++        <button aria-label="Editor schließen" disabled={busy} onClick={onClose}>
++          <X size={20} />
++        </button>
++      </div>
++      <form
++        onSubmit={(e) => {
++          e.preventDefault();
++          create.mutate({ body, mediaId: media?.id });
++        }}
++      >
++        <label htmlFor="post-body">Dein Beitrag</label>
++        <textarea
++          autoFocus
++          id="post-body"
++          value={body}
++          onChange={(e) => setBody(e.target.value)}
++          maxLength={5000}
++          rows={5}
++          placeholder="Eine Frage, ein Gedanke oder ein Lernerfolg …"
++        />
++        {media && (
++          <div className={styles.imagePreview}>
++            <img src={media.url} alt="Vorschau des Beitragsbildes" />
++            <button
++              type="button"
++              disabled={busy}
++              onClick={() => setMedia(null)}
++              aria-label="Bild entfernen"
++            >
++              <X size={18} />
++            </button>
++          </div>
++        )}
++        <div className={styles.editorActions}>
++          <label className={styles.attach}>
++            <ImagePlus size={20} />
++            {upload.isPending ? "Bild wird hochgeladen …" : "Bild hinzufügen"}
++            <input
++              type="file"
++              accept="image/jpeg,image/png,image/webp"
++              disabled={busy}
++              onChange={async (e) => {
++                const file = e.target.files?.[0];
++                e.target.value = "";
++                if (file) {
++                  try {
++                    setMedia(await upload.mutateAsync(file));
++                  } catch {}
++                }
++              }}
++            />
++          </label>
++          <button
++            className="button primary"
++            disabled={busy || (!body.trim() && !media)}
++          >
++            <Send size={16} />
++            {create.isPending ? "Wird veröffentlicht …" : "Veröffentlichen"}
++          </button>
++        </div>
++        <small>JPG, PNG oder WebP · max. 2 MB · {body.length}/5000</small>
++        {(upload.error || create.error) && (
++          <p role="alert" className={styles.error}>
++            {upload.error?.message || create.error?.message}
++          </p>
++        )}
++      </form>
++    </section>
++  );
++}
+diff --git a/src/features/community/components/post-feed.tsx b/src/features/community/components/post-feed.tsx
+new file mode 100644
+index 0000000000000000000000000000000000000000..1158c034df612d17a5dab951f2b1d408087fc2ca
+--- /dev/null
++++ b/src/features/community/components/post-feed.tsx
+@@ -0,0 +1,60 @@
++"use client";
++import { useInfiniteQuery } from "@tanstack/react-query";
++import { useTRPC } from "@/trpc/provider";
++import { Loading, ErrorNotice, Empty } from "@/components/ui/feedback";
++import { PostCard } from "./post-card";
++export function PostFeed({
++  filter = "all",
++  search = "",
++  authorId,
++}: {
++  filter?: "all" | "mine" | "saved";
++  search?: string;
++  authorId?: string;
++}) {
++  const api = useTRPC();
++  const feed = useInfiniteQuery(
++    api.social.feed.infiniteQueryOptions(
++      { filter, search, authorId },
++      { getNextPageParam: (page) => page.nextCursor },
++    ),
++  );
++  if (feed.isPending) return <Loading />;
++  if (feed.error) return <ErrorNotice message={feed.error.message} />;
++  const posts = feed.data.pages.flatMap((p) => p.items);
++  return (
++    <>
++      {posts.length ? (
++        posts.map((post) => (
++          <PostCard
++            key={post.id}
++            post={post}
++            viewerId={feed.data.pages[0].viewerId}
++          />
++        ))
++      ) : (
++        <Empty
++          title={
++            filter === "saved"
++              ? "Noch keine gespeicherten Beiträge"
++              : filter === "mine"
++                ? "Dein erster Beitrag wartet auf dich"
++                : "Noch keine Beiträge"
++          }
++          description="Teile einen Gedanken oder passe deine Suche an."
++        />
++      )}
++      {feed.hasNextPage && (
++        <button
++          className="button secondary full"
++          disabled={feed.isFetchingNextPage}
++          onClick={() => feed.fetchNextPage()}
++        >
++          {feed.isFetchingNextPage
++            ? "Beiträge werden geladen …"
++            : "Weitere Beiträge laden"}
++        </button>
++      )}
++    </>
++  );
++}
+diff --git a/src/features/community/profile-link.ts b/src/features/community/profile-link.ts
+new file mode 100644
+index 0000000000000000000000000000000000000000..7208dc6233cacaface96d70dfccf5edf6fada6c3
+--- /dev/null
++++ b/src/features/community/profile-link.ts
+@@ -0,0 +1,3 @@
++export function profileHref(user: { id: string; username?: string | null }) {
++  return `/u/${encodeURIComponent(user.username || "~" + user.id)}`;
++}
+diff --git a/src/features/community/use-social-refresh.ts b/src/features/community/use-social-refresh.ts
+new file mode 100644
+index 0000000000000000000000000000000000000000..97671cf9d4b27d4f25c612c17c4a5882097fc977
+--- /dev/null
++++ b/src/features/community/use-social-refresh.ts
+@@ -0,0 +1,12 @@
++"use client";
++import { useQueryClient } from "@tanstack/react-query";
++import { useTRPC } from "@/trpc/provider";
++export function useSocialRefresh() {
++  const api = useTRPC(),
++    cache = useQueryClient();
++  return () =>
++    Promise.all([
++      cache.invalidateQueries({ queryKey: api.social.pathKey() }),
++      cache.invalidateQueries({ queryKey: api.profile.pathKey() }),
++    ]);
++}
+diff --git a/src/features/learning/components/category-carousel.module.css b/src/features/learning/components/category-carousel.module.css
+index 8b98068d7886e0db1bdedb3c6fcebf51985d6fd2..b258d5f079b9976ca7a48d2155e1cb97d78902d6 100644
+--- a/src/features/learning/components/category-carousel.module.css
++++ b/src/features/learning/components/category-carousel.module.css
+@@ -42,7 +42,7 @@
+ }
+ .title p {
+   margin: 8px 0 0;
+-  font-size: 11px;
++  font-size: 12px;
+   color: #9a8dab;
+ }
+ .access {
+@@ -51,21 +51,21 @@
+   color: #8052bd;
+   background: #eee6fa;
+   border-radius: 6px;
+-  font-size: 10px;
++  font-size: 12px;
+   padding: 2px 6px;
+ }
+ .caption {
+   display: block;
+   text-align: center;
+   color: #a296b1;
+-  font-size: 10px;
++  font-size: 12px;
+   margin-top: 8px;
+ }
+ .select {
+   display: flex;
+   flex-direction: column;
+   gap: 5px;
+-  font-size: 10px;
++  font-size: 12px;
+   color: #9a8dab;
+   margin-top: 18px;
+ }
+diff --git a/src/features/learning/components/learning-dashboard.module.css b/src/features/learning/components/learning-dashboard.module.css
+index 39562dc0e41b95fc1a449d21f73375b2ffac06bd..5de6aa3330d2637c1fd81b987f72b1c85289b4f2 100644
+--- a/src/features/learning/components/learning-dashboard.module.css
++++ b/src/features/learning/components/learning-dashboard.module.css
+@@ -11,7 +11,7 @@
+   margin: 8px 0 12px;
+ }
+ .heading span {
+-  font-size: 9px;
++  font-size: 12px;
+   letter-spacing: 0.16em;
+   color: #a294b4;
+   font-weight: 700;
+@@ -30,13 +30,13 @@
+   border-radius: 12px;
+   background: #eee6fa;
+   color: #7546b8;
+-  font-size: 11px;
++  font-size: 12px;
+   font-weight: 700;
+   padding: 12px;
+   cursor: pointer;
+ }
+ .greeting {
+-  font-size: 11px;
++  font-size: 12px;
+   color: #a092b0;
+   line-height: 1.7;
+   margin: 0 0 24px;
+@@ -96,7 +96,7 @@
+ }
+ .catalog small {
+   display: block;
+-  font-size: 10px;
++  font-size: 12px;
+   color: #a394b3;
+   margin-top: 5px;
+ }
+diff --git a/src/features/learning/components/learning-path.module.css b/src/features/learning/components/learning-path.module.css
+index 9f4d559ad6848d6834076c439851b7c18725b094..ff1ed2931111f1c3374414b4bb312ef184c3a5fd 100644
+--- a/src/features/learning/components/learning-path.module.css
++++ b/src/features/learning/components/learning-path.module.css
+@@ -26,7 +26,7 @@
+   justify-content: space-between;
+   align-items: center;
+   gap: 10px;
+-  font-size: 10px;
++  font-size: 12px;
+   font-weight: 700;
+   letter-spacing: 0.05em;
+ }
+@@ -145,7 +145,7 @@
+     0 9px 18px #7546b72b;
+ }
+ .pill {
+-  font-size: 11px;
++  font-size: 12px;
+   font-weight: 800;
+   background: #eee6fb;
+   color: #7044b4;
+@@ -160,7 +160,7 @@
+   max-width: 155px;
+ }
+ .detail {
+-  font-size: 10px;
++  font-size: 12px;
+   line-height: 1.5;
+   color: #998da9;
+   max-width: 150px;
+@@ -218,7 +218,7 @@
+   color: #7944cd;
+   border: 1px solid #ece3f9;
+   padding: 7px 10px;
+-  font-size: 10px;
++  font-size: 12px;
+   white-space: nowrap;
+   border-radius: 10px;
+   box-shadow: 0 4px 12px #7041cc14;
+diff --git a/src/features/media/use-image-upload.ts b/src/features/media/use-image-upload.ts
+new file mode 100644
+index 0000000000000000000000000000000000000000..0e100967dac17df098526d2230c7376e5c493262
+--- /dev/null
++++ b/src/features/media/use-image-upload.ts
+@@ -0,0 +1,38 @@
++"use client";
++import { useMutation, useQueryClient } from "@tanstack/react-query";
++import { useTRPC } from "@/trpc/provider";
++export function useImageUpload(purpose: "avatar" | "post") {
++  const api = useTRPC(),
++    cache = useQueryClient();
++  return useMutation({
++    mutationFn: async (file: File) => {
++      if (file.size > 2 * 1024 * 1024)
++        throw new Error("Das Bild darf maximal 2 MB groß sein.");
++      if (!["image/jpeg", "image/png", "image/webp"].includes(file.type))
++        throw new Error("Bitte wähle JPG, PNG oder WebP.");
++      const form = new FormData();
++      form.set("file", file);
++      form.set("purpose", purpose);
++      const response = await fetch("/api/media", {
++        method: "POST",
++        body: form,
++      });
++      let result: { id: string; url: string; message?: string };
++      try {
++        result = await response.json();
++      } catch {
++        throw new Error("Upload fehlgeschlagen. Bitte versuche es erneut.");
++      }
++      if (!response.ok)
++        throw new Error(result.message || "Upload fehlgeschlagen.");
++      return result;
++    },
++    onSuccess: async () => {
++      if (purpose === "avatar")
++        await Promise.all([
++          cache.invalidateQueries({ queryKey: api.profile.pathKey() }),
++          cache.invalidateQueries({ queryKey: api.social.pathKey() }),
++        ]);
++    },
++  });
++}
+diff --git a/src/features/profile/avatar-editor.tsx b/src/features/profile/avatar-editor.tsx
+new file mode 100644
+index 0000000000000000000000000000000000000000..67178ae3c0edd62e7fd3989135fc99eb5252c12f
+--- /dev/null
++++ b/src/features/profile/avatar-editor.tsx
+@@ -0,0 +1,41 @@
++"use client";
++import { Camera } from "lucide-react";
++import { Avatar } from "@/components/ui/avatar";
++import { useImageUpload } from "@/features/media/use-image-upload";
++import styles from "./profile.module.css";
++export function AvatarEditor({
++  image,
++  name,
++}: {
++  image?: string | null;
++  name?: string | null;
++}) {
++  const upload = useImageUpload("avatar");
++  return (
++    <div className={styles.avatarEditor}>
++      <Avatar image={image} name={name} size={88} />
++      <label>
++        <Camera size={16} />
++        {upload.isPending ? "Wird hochgeladen …" : "Foto ändern"}
++        <input
++          aria-label="Profilbild hochladen"
++          type="file"
++          accept="image/jpeg,image/png,image/webp"
++          disabled={upload.isPending}
++          onChange={async (e) => {
++            const file = e.target.files?.[0];
++            e.target.value = "";
++            if (file) {
++              try {
++                await upload.mutateAsync(file);
++              } catch {}
++            }
++          }}
++        />
++      </label>
++      <small>JPG, PNG, WebP · max. 2 MB</small>
++      {upload.error && <p role="alert">{upload.error.message}</p>}
++      {upload.isSuccess && <span role="status">Profilbild gespeichert.</span>}
++    </div>
++  );
++}
+diff --git a/src/features/profile/badge-gallery.tsx b/src/features/profile/badge-gallery.tsx
+new file mode 100644
+index 0000000000000000000000000000000000000000..72956231bb88332d71d7848c96a31f2eb2c5bafc
+--- /dev/null
++++ b/src/features/profile/badge-gallery.tsx
+@@ -0,0 +1,67 @@
++"use client";
++import { useState } from "react";
++import { Award } from "lucide-react";
++import styles from "./profile.module.css";
++type Badge = {
++  id: string;
++  title: string;
++  description: string;
++  category: string;
++};
++const labels: Record<string, string> = {
++  xp: "Punkte",
++  streak: "Lernserie",
++  social: "Community",
++  lessons: "Lektionen",
++  learning: "Lernen",
++  specialty: "Fachgebiete",
++  likes: "Likes",
++};
++export function BadgeGallery({ badges }: { badges: Badge[] }) {
++  const [category, setCategory] = useState("all");
++  const categories = [...new Set(badges.map((b) => b.category))];
++  const visible =
++    category === "all" ? badges : badges.filter((b) => b.category === category);
++  return (
++    <section>
++      <div className={styles.badgeHeading}>
++        <h2>Erreichte Abzeichen</h2>
++        <span>{badges.length}</span>
++      </div>
++      <p className={styles.subtitle}>Meilensteine auf dem Lernweg.</p>
++      <div className={styles.badgeTabs}>
++        <button
++          aria-pressed={category === "all"}
++          onClick={() => setCategory("all")}
++        >
++          Alle
++        </button>
++        {categories.map((c) => (
++          <button
++            key={c}
++            aria-pressed={category === c}
++            onClick={() => setCategory(c)}
++          >
++            {labels[c.toLowerCase()] || c}
++          </button>
++        ))}
++      </div>
++      <div className={styles.badges}>
++        {visible.length ? (
++          visible.map((b) => (
++            <article key={b.id}>
++              <Award size={32} />
++              <h3>{b.title}</h3>
++              <p>{b.description}</p>
++            </article>
++          ))
++        ) : (
++          <p>
++            Noch keine Abzeichen. Jede abgeschlossene Lektion bringt dich
++            weiter.
++          </p>
++        )}
++      </div>
++    </section>
++  );
++}
+diff --git a/src/features/profile/connections.tsx b/src/features/profile/connections.tsx
+new file mode 100644
+index 0000000000000000000000000000000000000000..c58e9c8a0af9b999d464a9a00afe945eb99fb969
+--- /dev/null
++++ b/src/features/profile/connections.tsx
+@@ -0,0 +1,61 @@
++"use client";
++import Link from "next/link";
++import { useInfiniteQuery } from "@tanstack/react-query";
++import { useTRPC } from "@/trpc/provider";
++import { Avatar } from "@/components/ui/avatar";
++import { Loading, ErrorNotice } from "@/components/ui/feedback";
++import { profileHref } from "@/features/community/profile-link";
++import styles from "./profile.module.css";
++export function Connections({
++  userId,
++  kind,
++  onClose,
++}: {
++  userId: string;
++  kind: "followers" | "following";
++  onClose: () => void;
++}) {
++  const api = useTRPC(),
++    data = useInfiniteQuery(
++      api.profile.connections.infiniteQueryOptions(
++        { userId, kind },
++        { getNextPageParam: (page) => page.nextCursor },
++      ),
++    );
++  return (
++    <section className={styles.connections}>
++      <header>
++        <h2>{kind === "followers" ? "Follower" : "Folgt"}</h2>
++        <button onClick={onClose}>Schließen</button>
++      </header>
++      {data.isPending ? (
++        <Loading />
++      ) : data.error ? (
++        <ErrorNotice message={data.error.message} />
++      ) : (
++        <>
++          {!data.data.pages[0].items.length && <p>Noch keine Einträge.</p>}
++          {data.data.pages
++            .flatMap((page) => page.items)
++            .map((user) => (
++              <Link key={user.id} href={profileHref(user)}>
++                <Avatar image={user.image} name={user.name} size={38} />
++                <span>
++                  {user.name || "Dentora Mitglied"}
++                  {user.username && <small>@{user.username}</small>}
++                </span>
++              </Link>
++            ))}
++          {data.hasNextPage && (
++            <button
++              disabled={data.isFetchingNextPage}
++              onClick={() => data.fetchNextPage()}
++            >
++              Weitere anzeigen
++            </button>
++          )}
++        </>
++      )}
++    </section>
++  );
++}
+diff --git a/src/features/profile/logout-button.tsx b/src/features/profile/logout-button.tsx
+new file mode 100644
+index 0000000000000000000000000000000000000000..8eac169a0000331ebe151e6d3b4152ed74a83536
+--- /dev/null
++++ b/src/features/profile/logout-button.tsx
+@@ -0,0 +1,16 @@
++"use client";
++import { useQueryClient } from "@tanstack/react-query";
++import { LogOut } from "lucide-react";
++import { logoutAction } from "@/features/auth/actions";
++import styles from "./profile.module.css";
++export function LogoutButton() {
++  const cache = useQueryClient();
++  return (
++    <form action={logoutAction} onSubmit={() => cache.clear()}>
++      <button className={styles.logout}>
++        <LogOut size={19} />
++        Abmelden
++      </button>
++    </form>
++  );
++}
+diff --git a/src/features/profile/profile-header.tsx b/src/features/profile/profile-header.tsx
+new file mode 100644
+index 0000000000000000000000000000000000000000..32f6a1a327315afe63d438b019a4dc008692f597
+--- /dev/null
++++ b/src/features/profile/profile-header.tsx
+@@ -0,0 +1,105 @@
++import Link from "next/link";
++import { ArrowLeft, Flame, Star } from "lucide-react";
++import { Avatar } from "@/components/ui/avatar";
++import { AvatarEditor } from "./avatar-editor";
++import { FollowButton } from "@/features/community/components/follow-button";
++import styles from "./profile.module.css";
++type ProfileView = {
++  id: string;
++  name: string | null;
++  image: string | null;
++  username: string | null;
++  bio: string;
++  university: string;
++  _count: {
++    post_author: number;
++    follow_following: number;
++    follow_follower: number;
++  };
++};
++export function ProfileHeader({
++  user,
++  xp,
++  streak,
++  own = false,
++  following = false,
++  onConnections,
++  onPosts,
++}: {
++  user: ProfileView;
++  xp: number;
++  streak: number;
++  own?: boolean;
++  following?: boolean;
++  onConnections: (kind: "followers" | "following") => void;
++  onPosts: () => void;
++}) {
++  return (
++    <>
++      <section className={styles.hero}>
++        <div className={styles.top}>
++          <Link href="/community" aria-label="Zur Community">
++            <ArrowLeft size={19} />
++          </Link>
++          <span>{own ? "Dein Profil" : "Profil"}</span>
++        </div>
++        <div className={styles.identity}>
++          {own ? (
++            <AvatarEditor image={user.image} name={user.name} />
++          ) : (
++            <Avatar image={user.image} name={user.name} size={88} />
++          )}
++          <img
++            className={styles.mascot}
++            src="/mascots/purple-rabbit.png"
++            alt=""
++            aria-hidden="true"
++          />
++          <h1>{user.name || "Dentora Mitglied"}</h1>
++          {user.username && (
++            <span className={styles.username}>@{user.username}</span>
++          )}
++          {user.bio && <p>{user.bio}</p>}
++          {user.university && (
++            <p className={styles.university}>{user.university}</p>
++          )}
++        </div>
++        <div className={styles.counts}>
++          <button onClick={onPosts}>
++            <strong>{user._count.post_author}</strong>
++            <span>Beiträge</span>
++          </button>
++          <button onClick={() => onConnections("following")}>
++            <strong>{user._count.follow_follower}</strong>
++            <span>Folgt</span>
++          </button>
++          <button onClick={() => onConnections("followers")}>
++            <strong>{user._count.follow_following}</strong>
++            <span>Follower</span>
++          </button>
++        </div>
++        <div className={styles.heroAction}>
++          {own ? (
++            <Link href="/einstellungen">Profil bearbeiten</Link>
++          ) : (
++            <FollowButton userId={user.id} following={following} />
++          )}
++        </div>
++      </section>
++      <div className={styles.stats}>
++        <div>
++          <Star size={24} />
++          <span>
++            <strong>{xp.toLocaleString("de-DE")}</strong>Erfahrungspunkte
++          </span>
++        </div>
++        <div>
++          <Flame size={24} />
++          <span>
++            <strong>{streak}</strong>Tage in Folge
++          </span>
++        </div>
++      </div>
++    </>
++  );
++}
+diff --git a/src/features/profile/profile-page.tsx b/src/features/profile/profile-page.tsx
+index ff4312720547142339f0d4a6f4c9773b4ff1e064..debb0d2d864ecd684defc389b6d51af0f046feac 100644
+--- a/src/features/profile/profile-page.tsx
++++ b/src/features/profile/profile-page.tsx
+@@ -1,12 +1,19 @@
+ "use client";
+ import Link from "next/link";
++import { useState } from "react";
+ import { useQuery } from "@tanstack/react-query";
+ import { useTRPC } from "@/trpc/provider";
+-import { Card } from "@/components/ui/card";
+-import { PageHeading } from "@/components/ui/page-heading";
+ import { Loading, ErrorNotice } from "@/components/ui/feedback";
++import { ProfileHeader } from "./profile-header";
++import { Connections } from "./connections";
++import { BadgeGallery } from "./badge-gallery";
++import { LogoutButton } from "./logout-button";
++import { PostFeed } from "@/features/community/components/post-feed";
++import styles from "./profile.module.css";
+ export function ProfilePage() {
+-  const api = useTRPC();
++  const api = useTRPC(),
++    [connections, setConnections] = useState<"followers" | "following">(),
++    [tab, setTab] = useState<"badges" | "posts">("badges");
+   const me = useQuery(api.profile.me.queryOptions()),
+     badges = useQuery(api.profile.badges.queryOptions()),
+     certificates = useQuery(api.profile.certificates.queryOptions());
+@@ -14,85 +21,71 @@ export function ProfilePage() {
+   if (me.error) return <ErrorNotice message={me.error.message} />;
+   const { user, game } = me.data;
+   return (
+-    <>
+-      <PageHeading
+-        eyebrow="DEINE LERNREISE"
+-        title={user.name ?? "Dein Profil"}
+-        description={user.bio || "Hier wächst dein Wissen mit dir."}
+-      >
+-        <Link className="button secondary" href="/einstellungen">
+-          Profil bearbeiten
+-        </Link>
+-      </PageHeading>
+-      <div className="three-grid">
+-        {[
+-          [game.xp, "Erfahrungspunkte"],
+-          [game.streak, "Tage in Folge"],
+-          [certificates.data?.length ?? 0, "Zertifikate"],
+-        ].map(([value, label]) => (
+-          <Card key={label}>
+-            <span className="eyebrow">{label}</span>
+-            <h2>{value}</h2>
+-          </Card>
+-        ))}
++    <div className={styles.profile}>
++      <ProfileHeader
++        user={user}
++        xp={game.xp}
++        streak={game.streak}
++        own
++        onConnections={setConnections}
++        onPosts={() => setTab("posts")}
++      />
++      {connections && (
++        <Connections
++          userId={user.id}
++          kind={connections}
++          onClose={() => setConnections(undefined)}
++        />
++      )}
++      <div className={styles.switcher}>
++        <button
++          aria-pressed={tab === "badges"}
++          onClick={() => setTab("badges")}
++        >
++          Abzeichen
++        </button>
++        <button aria-pressed={tab === "posts"} onClick={() => setTab("posts")}>
++          Meine Beiträge
++        </button>
+       </div>
+-      <div className="profile-menu">
++      {tab === "posts" ? (
++        <PostFeed filter="mine" />
++      ) : badges.isPending ? (
++        <Loading />
++      ) : badges.error ? (
++        <ErrorNotice message={badges.error.message} />
++      ) : (
++        <BadgeGallery badges={badges.data.filter((b) => b.awards.length)} />
++      )}
++      <div className={styles.menu}>
+         {[
+-          [
+-            "/gespeichert",
+-            "Gespeicherte Inhalte",
+-            "Lektionen, Markierungen und Wiederholungen",
+-          ],
+-          ["/shop", "Shop & Pro", "Kurse und Extras entdecken"],
+-          [
+-            "/einstellungen",
+-            "Einstellungen",
+-            "Profil, Lernziel und Datenschutz",
+-          ],
+-          ["/hilfe", "Hilfe & Support", "Wir helfen dir weiter"],
+-        ].map(([href, title, subtitle]) => (
+-          <Link key={href} href={href}>
+-            <div>
+-              <strong>{title}</strong>
+-              <small>{subtitle}</small>
+-            </div>
++          ["/community?filter=saved", "Gespeicherte Beiträge"],
++          ["/gespeichert", "Gespeicherte Lektionen"],
++          ["/shop", "Shop & Pro"],
++          ["/einstellungen", "Einstellungen"],
++          ["/hilfe", "Hilfe & Support"],
++        ].map(([href, title]) => (
++          <Link href={href} key={href}>
++            {title}
+             <span>›</span>
+           </Link>
+         ))}
+       </div>
+-      <h2>Deine Meilensteine</h2>
+-      <div className="three-grid">
+-        {badges.data?.map((b) => (
+-          <Card
+-            key={b.id}
+-            className={b.awards.length ? "badge-card earned" : "badge-card"}
+-          >
+-            <span>✧</span>
+-            <h3>{b.title}</h3>
+-            <p>{b.description}</p>
+-            <small>
+-              {b.awards.length ? "Erreicht" : "Noch nicht erreicht"}
+-            </small>
+-          </Card>
+-        ))}
+-      </div>
+-      <h2>Deine Zertifikate</h2>
+-      <Card>
+-        {certificates.data?.length ? (
++      <section className={styles.certificates}>
++        <h2>Deine Zertifikate</h2>
++        {certificates.error ? (
++          <ErrorNotice message={certificates.error.message} />
++        ) : certificates.data?.length ? (
+           certificates.data.map((c) => (
+-            <p key={c.id}>
+-              <Link className="text-link" href={`/zertifikat/${c.code}`}>
+-                {c.courseSnapshot} →
+-              </Link>
+-            </p>
++            <Link key={c.id} href={`/zertifikat/${c.code}`}>
++              {c.courseSnapshot} →
++            </Link>
+           ))
+         ) : (
+-          <p>
+-            Schließe einen vollständigen Kurs ab, um dein Zertifikat zu
+-            erhalten.
+-          </p>
++          <p>Schließe einen Kurs ab, um dein Zertifikat zu erhalten.</p>
+         )}
+-      </Card>
+-    </>
++      </section>
++      <LogoutButton />
++    </div>
+   );
+ }
+diff --git a/src/features/profile/profile.module.css b/src/features/profile/profile.module.css
+new file mode 100644
+index 0000000000000000000000000000000000000000..fef39cc8ae24884c97a2792da1e4ff7cdb4b628e
+--- /dev/null
++++ b/src/features/profile/profile.module.css
+@@ -0,0 +1,382 @@
++.profile {
++  max-width: 480px;
++  margin: auto;
++}
++.hero {
++  background: linear-gradient(145deg, #be96ee, #8c54ce 46%, #6735ac);
++  border-radius: 22px;
++  color: white;
++  padding: 18px 19px 20px;
++  overflow: hidden;
++}
++.top {
++  display: flex;
++  justify-content: space-between;
++  align-items: center;
++  margin-bottom: 18px;
++  font-size: 14px;
++  font-weight: 700;
++}
++.top a {
++  background: #ffffff20;
++  width: 35px;
++  height: 35px;
++  border-radius: 11px;
++  display: grid;
++  place-items: center;
++  color: #fff;
++}
++.identity {
++  position: relative;
++  padding-right: 75px;
++  min-height: 148px;
++}
++.identity h1 {
++  color: white;
++  font-size: 24px;
++  line-height: 1.3;
++  margin: 15px 0 5px;
++  overflow-wrap: anywhere;
++}
++.identity p {
++  color: #f9f1ff !important;
++  font-size: 14px !important;
++  line-height: 1.8;
++  white-space: pre-wrap;
++  overflow-wrap: anywhere;
++  margin: 9px 0;
++}
++.username {
++  font-size: 13px;
++  font-weight: 600;
++  color: #f1ddff;
++}
++.university {
++  font-weight: 600;
++}
++.mascot {
++  position: absolute;
++  right: -8px;
++  top: 20px;
++  width: 82px;
++  height: 110px;
++  object-fit: contain;
++  filter: drop-shadow(0 8px 8px #4e207c33);
++  pointer-events: none;
++}
++.counts {
++  display: grid;
++  grid-template-columns: repeat(3, 1fr);
++  border-top: 1px solid #ffffff38;
++  margin-top: 20px;
++  padding-top: 15px;
++}
++.counts button {
++  background: transparent;
++  border: 0;
++  color: white;
++  display: flex;
++  flex-direction: column;
++  align-items: center;
++  gap: 5px;
++  border-right: 1px solid #ffffff26;
++  cursor: pointer;
++  min-height: 52px;
++}
++.counts button:last-child {
++  border-right: 0;
++}
++.counts strong {
++  font-size: 22px;
++}
++.counts span {
++  font-size: 13px;
++  font-weight: 600;
++}
++.heroAction {
++  margin-top: 16px;
++}
++.heroAction > a,
++.heroAction button {
++  background: #fff !important;
++  border: 0 !important;
++  border-radius: 12px !important;
++  min-height: 46px;
++  width: 100%;
++  display: flex;
++  justify-content: center;
++  align-items: center;
++  color: #7843b5 !important;
++  font-size: 14px !important;
++  font-weight: 750 !important;
++  text-decoration: none;
++}
++.stats {
++  display: grid;
++  grid-template-columns: 1fr 1fr;
++  gap: 12px;
++  margin: 22px 0;
++}
++.stats > div {
++  display: flex;
++  align-items: center;
++  justify-content: center;
++  gap: 10px;
++  background: white;
++  border: 1px solid #e5d9ef;
++  border-radius: 16px;
++  padding: 17px 8px;
++  color: #a576cc;
++}
++.stats > div:last-child {
++  color: #e39362;
++}
++.stats span {
++  font-size: 12px;
++  color: #9784a5;
++  line-height: 1.5;
++  font-weight: 600;
++}
++.stats strong {
++  font-size: 22px;
++  display: block;
++  color: #594368;
++}
++.avatarEditor {
++  display: flex;
++  flex-direction: column;
++  align-items: flex-start;
++  gap: 9px;
++}
++.avatarEditor label {
++  position: relative;
++  display: flex;
++  gap: 6px;
++  align-items: center;
++  background: #ffffff25;
++  border: 1px solid #ffffff40;
++  padding: 7px 9px;
++  border-radius: 9px;
++  font-size: 12px;
++  font-weight: 650;
++  cursor: pointer;
++}
++.avatarEditor input {
++  position: absolute;
++  inset: 0;
++  opacity: 0;
++  width: 100%;
++  height: 100%;
++  cursor: pointer;
++}
++.avatarEditor label:focus-within {
++  outline: 3px solid white;
++}
++.avatarEditor small,
++.avatarEditor > span {
++  font-size: 12px;
++  color: #f5eaff;
++}
++.avatarEditor p {
++  background: #fff0f3;
++  color: #a42b4a !important;
++  border-radius: 9px;
++  padding: 9px;
++  font-size: 12px !important;
++}
++.switcher {
++  display: flex;
++  gap: 8px;
++  margin: 20px 0;
++}
++.switcher button {
++  flex: 1;
++  min-height: 44px;
++  background: #f0e8f8;
++  border: 0;
++  border-radius: 12px;
++  color: #9a7eb1;
++  font-size: 14px;
++  font-weight: 700;
++  cursor: pointer;
++}
++.switcher button[aria-pressed="true"] {
++  background: white;
++  color: #7e47b6;
++  box-shadow: 0 4px 14px #7140a215;
++}
++.badgeHeading {
++  display: flex;
++  align-items: center;
++  justify-content: space-between;
++  margin-top: 28px;
++}
++.badgeHeading h2 {
++  font-size: 21px;
++  margin: 0;
++  color: #50365f;
++}
++.badgeHeading span {
++  background: #f0e6fa;
++  color: #8450b2;
++  border-radius: 8px;
++  padding: 5px 10px;
++  font-size: 13px;
++  font-weight: 700;
++}
++.subtitle {
++  font-size: 14px !important;
++  color: #9b87aa !important;
++}
++.badgeTabs {
++  display: flex;
++  overflow: auto;
++  gap: 7px;
++  background: #f0eaf8;
++  border-radius: 14px;
++  padding: 5px;
++  margin: 18px 0;
++}
++.badgeTabs button {
++  flex-shrink: 0;
++  border: 0;
++  border-radius: 10px;
++  min-height: 38px;
++  padding: 8px 13px;
++  background: transparent;
++  color: #9b82ad;
++  font-weight: 650;
++  font-size: 13px;
++  cursor: pointer;
++}
++.badgeTabs button[aria-pressed="true"] {
++  background: white;
++  color: #8050ac;
++  box-shadow: 0 3px 10px #7944b51a;
++}
++.badges {
++  display: grid;
++  grid-template-columns: repeat(2, 1fr);
++  gap: 12px;
++}
++.badges > article {
++  padding: 18px 13px;
++  background: #fff;
++  border: 1px solid #e9def1;
++  border-radius: 16px;
++  text-align: center;
++  color: #b38bd5;
++}
++.badges h3 {
++  font-size: 15px;
++  color: #715180;
++  line-height: 1.5;
++}
++.badges p {
++  font-size: 13px !important;
++  color: #9d87a8;
++  line-height: 1.75;
++}
++.badges > p {
++  grid-column: 1/-1;
++  text-align: center;
++  padding: 28px 15px;
++}
++.menu {
++  margin: 28px 0;
++  background: white;
++  border: 1px solid #ece2f4;
++  border-radius: 16px;
++  overflow: hidden;
++}
++.menu a {
++  display: flex;
++  justify-content: space-between;
++  padding: 17px 16px;
++  border-bottom: 1px solid #f2eaf7;
++  color: #7b628c;
++  font-size: 14px;
++  font-weight: 650;
++}
++.menu a:last-child {
++  border: 0;
++}
++.certificates {
++  background: white;
++  padding: 18px;
++  border: 1px solid #e9def1;
++  border-radius: 16px;
++}
++.certificates h2 {
++  font-size: 19px;
++  color: #674675;
++}
++.certificates p {
++  font-size: 14px !important;
++  line-height: 1.8;
++}
++.certificates a {
++  display: block;
++  padding: 8px 0;
++  color: #9261ba;
++}
++.logout {
++  margin: 26px 0 6px;
++  display: flex;
++  align-items: center;
++  justify-content: center;
++  gap: 9px;
++  width: 100%;
++  min-height: 49px;
++  border: 1px solid #f5d8df;
++  background: #fff5f7;
++  color: #c23c58;
++  font-size: 15px;
++  font-weight: 750;
++  border-radius: 13px;
++  cursor: pointer;
++}
++.connections {
++  margin: 20px 0;
++  background: #fff;
++  border: 1px solid #e8daf2;
++  padding: 16px;
++  border-radius: 16px;
++}
++.connections header {
++  display: flex;
++  justify-content: space-between;
++  gap: 10px;
++  align-items: center;
++}
++.connections h2 {
++  font-size: 19px;
++  color: #745486;
++}
++.connections button {
++  border: 0;
++  border-radius: 8px;
++  padding: 8px;
++  background: #f2eafa;
++  color: #8453ab;
++  cursor: pointer;
++}
++.connections > a {
++  display: flex;
++  align-items: center;
++  gap: 10px;
++  padding: 12px 0;
++  font-size: 14px;
++  font-weight: 650;
++  color: #735180;
++  border-bottom: 1px solid #f5eff8;
++}
++.connections small {
++  display: block;
++  font-size: 12px;
++  color: #a28aad;
++}
++.profile button:focus-visible {
++  outline: 3px solid #c69cea;
++  outline-offset: 3px;
++}
+diff --git a/src/features/profile/public-profile-page.tsx b/src/features/profile/public-profile-page.tsx
+index 0c464c2a2f56da919afca9d28d42893c795837a9..faef9d76e4aec4a3763bba13abc521d3da4c051a 100644
+--- a/src/features/profile/public-profile-page.tsx
++++ b/src/features/profile/public-profile-page.tsx
+@@ -1,18 +1,18 @@
+ "use client";
+ import { useState } from "react";
+-import { useMutation, useQuery } from "@tanstack/react-query";
++import { useQuery } from "@tanstack/react-query";
+ import { useTRPC } from "@/trpc/provider";
+-import { useAction } from "@/hooks/use-action";
+-import { PageHeading } from "@/components/ui/page-heading";
+-import { Card } from "@/components/ui/card";
+-import { Button } from "@/components/ui/button";
+ import { Loading, ErrorNotice, Empty } from "@/components/ui/feedback";
++import { ProfileHeader } from "./profile-header";
++import { Connections } from "./connections";
++import { BadgeGallery } from "./badge-gallery";
++import { PostFeed } from "@/features/community/components/post-feed";
++import styles from "./profile.module.css";
+ export function PublicProfilePage({ username }: { username: string }) {
+   const api = useTRPC(),
+-    action = useAction();
+-  const [following, setFollowing] = useState(false);
+-  const data = useQuery(api.profile.public.queryOptions({ username })),
+-    follow = useMutation(api.social.follow.mutationOptions());
++    [connections, setConnections] = useState<"followers" | "following">(),
++    [tab, setTab] = useState<"badges" | "posts">("badges");
++  const data = useQuery(api.profile.public.queryOptions({ username }));
+   if (data.isPending) return <Loading />;
+   if (data.error) return <ErrorNotice message={data.error.message} />;
+   if (!data.data)
+@@ -24,39 +24,40 @@ export function PublicProfilePage({ username }: { username: string }) {
+     );
+   const user = data.data;
+   return (
+-    <>
+-      <PageHeading
+-        eyebrow={`@${user.username}`}
+-        title={user.name ?? "Dentora Mitglied"}
+-        description={user.bio}
+-      >
+-        <Button
+-          disabled={action.pending}
+-          onClick={() =>
+-            action.run(async () => {
+-              await follow.mutateAsync({ userId: user.id, follow: !following });
+-              setFollowing(!following);
+-            })
+-          }
++    <div className={styles.profile}>
++      <ProfileHeader
++        user={user}
++        xp={user.game?.xp ?? 0}
++        streak={user.game?.streak ?? 0}
++        own={user.isSelf}
++        following={user.following}
++        onConnections={setConnections}
++        onPosts={() => setTab("posts")}
++      />
++      {connections && (
++        <Connections
++          key={`${user.id}-${connections}`}
++          userId={user.id}
++          kind={connections}
++          onClose={() => setConnections(undefined)}
++        />
++      )}
++      <div className={styles.switcher}>
++        <button
++          aria-pressed={tab === "badges"}
++          onClick={() => setTab("badges")}
+         >
+-          {following ? "Nicht mehr folgen" : "Folgen"}
+-        </Button>
+-      </PageHeading>
+-      <div className="three-grid">
+-        <Card>
+-          <h2>{user.game?.xp ?? 0}</h2>
+-          <p>Erfahrungspunkte</p>
+-        </Card>
+-        <Card>
+-          <h2>{user._count.follow_following}</h2>
+-          <p>Follower</p>
+-        </Card>
+-        <Card>
+-          <h2>{user._count.follow_follower}</h2>
+-          <p>Folgt</p>
+-        </Card>
++          Abzeichen
++        </button>
++        <button aria-pressed={tab === "posts"} onClick={() => setTab("posts")}>
++          Beiträge
++        </button>
+       </div>
+-      <p role="status">{action.message}</p>
+-    </>
++      {tab === "posts" ? (
++        <PostFeed authorId={user.id} />
++      ) : (
++        <BadgeGallery badges={user.userBadge_user.map((a) => a.badge)} />
++      )}
++    </div>
+   );
+ }
+diff --git a/src/features/profile/settings-page.tsx b/src/features/profile/settings-page.tsx
+index f5b8e895dbb84dc818678c5afc1f90ccc40d0dfc..8961cf9ada755bc4e3044b558a8804285509297e 100644
+--- a/src/features/profile/settings-page.tsx
++++ b/src/features/profile/settings-page.tsx
+@@ -1,5 +1,6 @@
+ "use client";
+-import { logoutAction } from "@/features/auth/actions";
++import { LogoutButton } from "./logout-button";
++import { AvatarEditor } from "./avatar-editor";
+ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+ import { useTRPC } from "@/trpc/provider";
+ import { useAction } from "@/hooks/use-action";
+@@ -24,6 +25,7 @@ export function SettingsPage() {
+         description="Passe dein Profil und deine Lerngewohnheiten an."
+       />
+       <Card className="narrow">
++        <AvatarEditor image={user.image} name={user.name} />
+         <form
+           onSubmit={(e) => {
+             e.preventDefault();
+@@ -104,9 +106,7 @@ export function SettingsPage() {
+           <p role="status">{action.message}</p>
+         </form>
+       </Card>
+-      <Button variant="secondary" onClick={() => logoutAction()}>
+-        Sicher abmelden
+-      </Button>
++      <LogoutButton />
+     </>
+   );
+ }
+diff --git a/src/server/media/image.ts b/src/server/media/image.ts
+new file mode 100644
+index 0000000000000000000000000000000000000000..afe7d127a0ed45fc16acd0a4310f583b9a368dce
+--- /dev/null
++++ b/src/server/media/image.ts
+@@ -0,0 +1,29 @@
++import sharp from "sharp";
++export const MAX_UPLOAD_BYTES = 2 * 1024 * 1024;
++export async function prepareImage(input: Buffer, purpose: "avatar" | "post") {
++  if (!input.length || input.length > MAX_UPLOAD_BYTES)
++    throw new Error("Bitte wähle ein Bild mit maximal 2 MB.");
++  const image = sharp(input, {
++    limitInputPixels: 16_000_000,
++    animated: false,
++    failOn: "error",
++  });
++  const meta = await image.metadata();
++  if (
++    !["jpeg", "png", "webp"].includes(meta.format ?? "") ||
++    (meta.pages ?? 1) > 1
++  )
++    throw new Error("Erlaubt sind JPG, PNG und WebP ohne Animation.");
++  const size = purpose === "avatar" ? 384 : 1440;
++  const result = await image
++    .rotate()
++    .resize(size, size, {
++      fit: purpose === "avatar" ? "cover" : "inside",
++      withoutEnlargement: true,
++    })
++    .webp({ quality: 80 })
++    .toBuffer();
++  if (result.length > MAX_UPLOAD_BYTES)
++    throw new Error("Das Bild ist zu groß. Bitte wähle ein kleineres Bild.");
++  return result;
++}
+diff --git a/src/server/media/storage.ts b/src/server/media/storage.ts
+new file mode 100644
+index 0000000000000000000000000000000000000000..860885e1fa4600ba01a1c0100d3ef26642ff0619
+--- /dev/null
++++ b/src/server/media/storage.ts
+@@ -0,0 +1,58 @@
++import "server-only";
++function settings() {
++  const raw = process.env.SUPABASE_URL,
++    key = process.env.SUPABASE_SERVICE_ROLE_KEY;
++  if (!raw || !key)
++    throw new Error(
++      "Der Bildupload ist noch nicht eingerichtet. Bitte kontaktiere den Support.",
++    );
++  const url = new URL(raw);
++  if (url.protocol !== "https:" || url.username || url.password)
++    throw new Error("Ungültige Storage-Konfiguration.");
++  const bucket = process.env.SUPABASE_MEDIA_BUCKET || "dentora-media";
++  if (!/^[a-z0-9-]+$/.test(bucket))
++    throw new Error("Ungültige Storage-Konfiguration.");
++  return {
++    base: `${url.origin}/storage/v1`,
++    bucket,
++    headers: { apikey: key, Authorization: `Bearer ${key}` },
++  };
++}
++export async function uploadObject(key: string, bytes: Buffer) {
++  const s = settings();
++  const response = await fetch(`${s.base}/object/${s.bucket}/${key}`, {
++    method: "POST",
++    headers: {
++      ...s.headers,
++      "Content-Type": "image/webp",
++      "x-upsert": "false",
++    },
++    body: new Uint8Array(bytes),
++    signal: AbortSignal.timeout(20000),
++  });
++  if (!response.ok)
++    throw new Error(
++      "Das Bild konnte nicht gespeichert werden. Bitte prüfe den Storage-Bucket und versuche es erneut.",
++    );
++}
++export async function downloadObject(key: string) {
++  const s = settings();
++  return fetch(
++    `${s.base}/object/authenticated/${s.bucket}/${key.split("/").map(encodeURIComponent).join("/")}`,
++    {
++      headers: s.headers,
++      cache: "no-store",
++      signal: AbortSignal.timeout(15000),
++    },
++  );
++}
++export async function deleteObject(key: string) {
++  const s = settings();
++  const response = await fetch(`${s.base}/object/${s.bucket}`, {
++    method: "DELETE",
++    headers: { ...s.headers, "Content-Type": "application/json" },
++    body: JSON.stringify({ prefixes: [key] }),
++    signal: AbortSignal.timeout(10000),
++  });
++  if (!response.ok) throw new Error("Storage cleanup failed");
++}
+diff --git a/src/server/routers/profile.ts b/src/server/routers/profile.ts
+index 44927e2c391a530b96f1deb980880b45a6aa93c7..42ff466bb2adaaa1c51b041650d2fde15a18e3e1 100644
+--- a/src/server/routers/profile.ts
++++ b/src/server/routers/profile.ts
+@@ -7,6 +7,7 @@ export const profileRouter = router({
+       select: {
+         id: true,
+         name: true,
++        image: true,
+         username: true,
+         bio: true,
+         university: true,
+@@ -14,6 +15,13 @@ export const profileRouter = router({
+         publicProfile: true,
+         emailReminders: true,
+         role: true,
++        _count: {
++          select: {
++            follow_following: true,
++            follow_follower: true,
++            post_author: { where: { deletedAt: null } },
++          },
++        },
+       },
+     });
+     const game = await ctx.db.gameState.upsert({
+@@ -53,27 +61,97 @@ export const profileRouter = router({
+       }),
+     ),
+   public: publicProcedure
+-    .input(z.object({ username: z.string() }))
+-    .query(({ ctx, input }) =>
+-      ctx.db.user.findFirst({
+-        where: { username: input.username, publicProfile: true },
++    .input(z.object({ username: z.string().min(1).max(100) }))
++    .query(async ({ ctx, input }) => {
++      const viewerId = ctx.session?.user?.id;
++      const user = await ctx.db.user.findFirst({
++        where: {
++          ...(input.username.startsWith("~")
++            ? { id: input.username.slice(1) }
++            : { username: input.username }),
++          OR: [
++            { publicProfile: true },
++            ...(viewerId ? [{ id: viewerId }] : []),
++          ],
++        },
+         select: {
+           id: true,
+           name: true,
++          image: true,
+           username: true,
+           bio: true,
+           university: true,
+           game: { select: { xp: true, streak: true } },
++          userBadge_user: { include: { badge: true } },
+           _count: {
+             select: {
+               follow_following: true,
+               follow_follower: true,
+-              post_author: true,
++              post_author: { where: { deletedAt: null } },
+             },
+           },
+         },
++      });
++      if (!user) return null;
++      const following = viewerId
++        ? await ctx.db.follow.findUnique({
++            where: {
++              followerId_followingId: {
++                followerId: viewerId,
++                followingId: user.id,
++              },
++            },
++            select: { id: true },
++          })
++        : null;
++      return { ...user, isSelf: viewerId === user.id, following: !!following };
++    }),
++  connections: protectedProcedure
++    .input(
++      z.object({
++        userId: z.string(),
++        kind: z.enum(["followers", "following"]),
++        cursor: z.string().optional(),
+       }),
+-    ),
++    )
++    .query(async ({ ctx, input }) => {
++      const visible = await ctx.db.user.findFirst({
++        where: {
++          id: input.userId,
++          OR: [{ publicProfile: true }, { id: ctx.userId }],
++        },
++        select: { id: true },
++      });
++      if (!visible) return { items: [], nextCursor: undefined };
++      const person = {
++        id: true,
++        name: true,
++        username: true,
++        image: true,
++      } as const;
++      const rows = await ctx.db.follow.findMany({
++        where:
++          input.kind === "followers"
++            ? { followingId: input.userId }
++            : { followerId: input.userId },
++        select: {
++          id: true,
++          follower: { select: person },
++          following: { select: person },
++        },
++        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
++        take: 21,
++        ...(input.cursor ? { cursor: { id: input.cursor }, skip: 1 } : {}),
++      });
++      return {
++        items: rows
++          .slice(0, 20)
++          .map((row) =>
++            input.kind === "followers" ? row.follower : row.following,
++          ),
++        nextCursor: rows.length > 20 ? rows[19].id : undefined,
++      };
++    }),
+   badges: protectedProcedure.query(({ ctx }) =>
+     ctx.db.badge.findMany({
+       include: { awards: { where: { userId: ctx.userId } } },
+diff --git a/src/server/routers/social.ts b/src/server/routers/social.ts
+index b1a57499efbc0b03ed871eb2049f83fd12b84c01..f2c8d4a96fd525f4533245152f88e8c9b6998796 100644
+--- a/src/server/routers/social.ts
++++ b/src/server/routers/social.ts
+@@ -1,37 +1,64 @@
+ import { z } from "zod";
+ import { TRPCError } from "@trpc/server";
+ import { router, protectedProcedure } from "../trpc";
+-const postInput = z.object({ body: z.string().trim().min(1).max(5000) });
++const postInput = z
++  .object({ body: z.string().trim().max(5000), mediaId: z.string().optional() })
++  .refine((x) => x.body.length > 0 || !!x.mediaId, {
++    message: "Bitte schreibe etwas oder füge ein Bild hinzu.",
++  });
+ export const socialRouter = router({
+   feed: protectedProcedure
+     .input(
+       z.object({
+         filter: z.enum(["all", "mine", "saved"]).default("all"),
+         search: z.string().max(100).default(""),
++        authorId: z.string().optional(),
+         cursor: z.string().optional(),
+       }),
+     )
+     .query(async ({ ctx, input }) => {
++      if (
++        input.authorId &&
++        input.authorId !== ctx.userId &&
++        !(await ctx.db.user.findFirst({
++          where: { id: input.authorId, publicProfile: true },
++          select: { id: true },
++        }))
++      )
++        throw new TRPCError({
++          code: "NOT_FOUND",
++          message: "Profil nicht verfügbar.",
++        });
+       const rows = await ctx.db.post.findMany({
+         where: {
+           deletedAt: null,
+           body: { contains: input.search, mode: "insensitive" },
++          ...(input.authorId ? { authorId: input.authorId } : {}),
+           ...(input.filter === "mine" ? { authorId: ctx.userId } : {}),
+           ...(input.filter === "saved"
+             ? { bookmarks: { some: { userId: ctx.userId } } }
+             : {}),
+         },
+         include: {
+-          author: { select: { id: true, name: true, username: true } },
+-          _count: { select: { likes: true, comments: true } },
+-          likes: {
+-            where: { userId: ctx.userId },
+-            select: { id: true },
++          author: {
++            select: {
++              id: true,
++              name: true,
++              username: true,
++              image: true,
++              university: true,
++              follow_following: {
++                where: { followerId: ctx.userId },
++                select: { id: true },
++              },
++            },
+           },
+-          bookmarks: {
+-            where: { userId: ctx.userId },
+-            select: { id: true },
++          media_post: { where: { status: "READY" }, select: { id: true } },
++          _count: {
++            select: { likes: true, comments: { where: { deletedAt: null } } },
+           },
++          likes: { where: { userId: ctx.userId }, select: { id: true } },
++          bookmarks: { where: { userId: ctx.userId }, select: { id: true } },
+         },
+         orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+         take: 21,
+@@ -40,68 +67,141 @@ export const socialRouter = router({
+       return {
+         items: rows.slice(0, 20),
+         nextCursor: rows.length > 20 ? rows[19].id : undefined,
++        viewerId: ctx.userId,
+       };
+     }),
+-  create: protectedProcedure
+-    .input(postInput)
+-    .mutation(({ ctx, input }) =>
+-      ctx.db.post.create({ data: { ...input, authorId: ctx.userId } }),
+-    ),
++  create: protectedProcedure.input(postInput).mutation(async ({ ctx, input }) =>
++    ctx.db.$transaction(async (tx) => {
++      const post = await tx.post.create({
++        data: { body: input.body, authorId: ctx.userId },
++      });
++      if (input.mediaId) {
++        const attached = await tx.media.updateMany({
++          where: {
++            id: input.mediaId,
++            ownerId: ctx.userId,
++            status: "READY",
++            postId: null,
++          },
++          data: { postId: post.id },
++        });
++        if (attached.count !== 1)
++          throw new TRPCError({
++            code: "BAD_REQUEST",
++            message:
++              "Dieses Bild ist nicht verfügbar. Bitte lade es erneut hoch.",
++          });
++      }
++      return post;
++    }),
++  ),
+   remove: protectedProcedure
+     .input(z.object({ id: z.string() }))
+-    .mutation(({ ctx, input }) =>
+-      ctx.db.post.updateMany({
+-        where: { id: input.id, authorId: ctx.userId },
++    .mutation(async ({ ctx, input }) => {
++      const result = await ctx.db.post.updateMany({
++        where: { id: input.id, authorId: ctx.userId, deletedAt: null },
+         data: { deletedAt: new Date() },
+-      }),
+-    ),
++      });
++      if (!result.count)
++        throw new TRPCError({
++          code: "NOT_FOUND",
++          message: "Beitrag nicht gefunden.",
++        });
++      return { removed: true };
++    }),
+   like: protectedProcedure
+     .input(z.object({ postId: z.string(), liked: z.boolean() }))
+     .mutation(async ({ ctx, input }) => {
+-      const post = await ctx.db.post.findFirst({
+-        where: { id: input.postId, deletedAt: null },
+-      });
+-      if (!post) throw new TRPCError({ code: "NOT_FOUND" });
++      if (
++        !(await ctx.db.post.findFirst({
++          where: { id: input.postId, deletedAt: null },
++          select: { id: true },
++        }))
++      )
++        throw new TRPCError({
++          code: "NOT_FOUND",
++          message: "Beitrag nicht gefunden.",
++        });
+       const key = { userId: ctx.userId, postId: input.postId };
+-      return input.liked
+-        ? ctx.db.postLike.upsert({
+-            where: { userId_postId: key },
+-            create: key,
+-            update: {},
+-          })
+-        : ctx.db.postLike.deleteMany({ where: key });
++      if (input.liked)
++        await ctx.db.postLike.upsert({
++          where: { userId_postId: key },
++          create: key,
++          update: {},
++        });
++      else await ctx.db.postLike.deleteMany({ where: key });
++      return { liked: input.liked };
+     }),
+   save: protectedProcedure
+     .input(z.object({ postId: z.string(), saved: z.boolean() }))
+     .mutation(async ({ ctx, input }) => {
++      if (
++        !(await ctx.db.post.findFirst({
++          where: { id: input.postId, deletedAt: null },
++          select: { id: true },
++        }))
++      )
++        throw new TRPCError({
++          code: "NOT_FOUND",
++          message: "Beitrag nicht gefunden.",
++        });
+       const key = { userId: ctx.userId, postId: input.postId };
+-      return input.saved
+-        ? ctx.db.postBookmark.upsert({
+-            where: { userId_postId: key },
+-            create: key,
+-            update: {},
+-          })
+-        : ctx.db.postBookmark.deleteMany({ where: key });
++      if (input.saved)
++        await ctx.db.postBookmark.upsert({
++          where: { userId_postId: key },
++          create: key,
++          update: {},
++        });
++      else await ctx.db.postBookmark.deleteMany({ where: key });
++      return { saved: input.saved };
+     }),
+   comments: protectedProcedure
+-    .input(z.object({ postId: z.string() }))
+-    .query(({ ctx, input }) =>
+-      ctx.db.comment.findMany({
++    .input(z.object({ postId: z.string(), cursor: z.string().optional() }))
++    .query(async ({ ctx, input }) => {
++      if (
++        !(await ctx.db.post.findFirst({
++          where: { id: input.postId, deletedAt: null },
++          select: { id: true },
++        }))
++      )
++        throw new TRPCError({
++          code: "NOT_FOUND",
++          message: "Beitrag nicht gefunden.",
++        });
++      const rows = await ctx.db.comment.findMany({
+         where: { postId: input.postId, deletedAt: null },
+-        include: { author: { select: { name: true, username: true } } },
+-        orderBy: { createdAt: "asc" },
+-        take: 100,
+-      }),
+-    ),
++        include: {
++          author: {
++            select: { id: true, name: true, username: true, image: true },
++          },
++        },
++        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
++        take: 21,
++        ...(input.cursor ? { cursor: { id: input.cursor }, skip: 1 } : {}),
++      });
++      return {
++        items: rows.slice(0, 20),
++        nextCursor: rows.length > 20 ? rows[19].id : undefined,
++      };
++    }),
+   comment: protectedProcedure
+-    .input(postInput.extend({ postId: z.string() }))
++    .input(
++      z.object({
++        body: z.string().trim().min(1).max(5000),
++        postId: z.string(),
++      }),
++    )
+     .mutation(async ({ ctx, input }) => {
+       if (
+         !(await ctx.db.post.findFirst({
+           where: { id: input.postId, deletedAt: null },
++          select: { id: true },
+         }))
+       )
+-        throw new TRPCError({ code: "NOT_FOUND" });
++        throw new TRPCError({
++          code: "NOT_FOUND",
++          message: "Beitrag nicht gefunden.",
++        });
+       return ctx.db.comment.create({
+         data: { ...input, authorId: ctx.userId },
+       });
+@@ -110,19 +210,37 @@ export const socialRouter = router({
+     .input(z.object({ userId: z.string(), follow: z.boolean() }))
+     .mutation(async ({ ctx, input }) => {
+       if (input.userId === ctx.userId)
+-        throw new TRPCError({ code: "BAD_REQUEST" });
++        throw new TRPCError({
++          code: "BAD_REQUEST",
++          message: "Du kannst dir nicht selbst folgen.",
++        });
++      if (
++        input.follow &&
++        !(await ctx.db.user.findFirst({
++          where: { id: input.userId, publicProfile: true },
++          select: { id: true },
++        }))
++      )
++        throw new TRPCError({
++          code: "NOT_FOUND",
++          message: "Profil nicht verfügbar.",
++        });
+       const key = { followerId: ctx.userId, followingId: input.userId };
+-      return input.follow
+-        ? ctx.db.follow.upsert({
+-            where: { followerId_followingId: key },
+-            create: key,
+-            update: {},
+-          })
+-        : ctx.db.follow.deleteMany({ where: key });
++      if (input.follow)
++        await ctx.db.follow.upsert({
++          where: { followerId_followingId: key },
++          create: key,
++          update: {},
++        });
++      else await ctx.db.follow.deleteMany({ where: key });
++      return { following: input.follow };
+     }),
+   report: protectedProcedure
+     .input(
+-      z.object({ postId: z.string(), reason: z.string().min(5).max(1000) }),
++      z.object({
++        postId: z.string(),
++        reason: z.string().trim().min(5).max(1000),
++      }),
+     )
+     .mutation(({ ctx, input }) =>
+       ctx.db.report.create({ data: { ...input, reporterId: ctx.userId } }),
+diff --git a/tests/image-upload.test.ts b/tests/image-upload.test.ts
+new file mode 100644
+index 0000000000000000000000000000000000000000..f9dbd7f828c7a797ff4e47476c6bc087cdfc3803
+--- /dev/null
++++ b/tests/image-upload.test.ts
+@@ -0,0 +1,33 @@
++import { it, expect } from "vitest";
++import sharp from "sharp";
++import { prepareImage, MAX_UPLOAD_BYTES } from "../src/server/media/image";
++it("decodes and re-encodes avatars with bounded dimensions and no metadata", async () => {
++  const source = await sharp({
++    create: { width: 800, height: 600, channels: 3, background: "#9955bb" },
++  })
++    .jpeg()
++    .withMetadata()
++    .toBuffer();
++  const image = await prepareImage(source, "avatar"),
++    meta = await sharp(image).metadata();
++  expect(meta.format).toBe("webp");
++  expect(meta.width).toBe(384);
++  expect(meta.height).toBe(384);
++  expect(meta.exif).toBeUndefined();
++});
++it("rejects disguised files, SVG and oversized images", async () => {
++  await expect(
++    prepareImage(Buffer.from("not an image"), "post"),
++  ).rejects.toThrow();
++  await expect(
++    prepareImage(
++      Buffer.from(
++        '<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"></svg>',
++      ),
++      "post",
++    ),
++  ).rejects.toThrow();
++  await expect(
++    prepareImage(Buffer.alloc(MAX_UPLOAD_BYTES + 1), "avatar"),
++  ).rejects.toThrow();
++});
+diff --git a/tests/media-routes.test.ts b/tests/media-routes.test.ts
+new file mode 100644
+index 0000000000000000000000000000000000000000..b4447bfdf6dac4a00c0c2b6d52d98ecc014c8671
+--- /dev/null
++++ b/tests/media-routes.test.ts
+@@ -0,0 +1,110 @@
++import { beforeEach, it, expect, vi } from "vitest";
++import sharp from "sharp";
++const state = vi.hoisted(() => ({
++  viewer: "owner" as string | undefined,
++  media: null as any,
++  create: vi.fn(),
++  update: vi.fn(),
++}));
++vi.mock("@/server/auth", () => ({
++  auth: async () => (state.viewer ? { user: { id: state.viewer } } : null),
++}));
++vi.mock("@/server/db", () => ({
++  db: {
++    $transaction: async (fn: any) =>
++      fn({ media: { create: state.create }, user: { update: state.update } }),
++    media: { findUnique: async () => state.media },
++  },
++}));
++vi.mock("@/server/rate-limit", () => ({ limit: async () => true }));
++vi.mock("@/server/media/storage", () => ({
++  uploadObject: vi.fn(async () => {}),
++  deleteObject: vi.fn(async () => {}),
++  downloadObject: vi.fn(async () => new Response("image")),
++}));
++import { POST } from "../src/app/api/media/route";
++import { GET } from "../src/app/api/media/[id]/route";
++import {
++  uploadObject,
++  downloadObject,
++  deleteObject,
++} from "../src/server/media/storage";
++beforeEach(() => {
++  vi.clearAllMocks();
++  state.viewer = "owner";
++  state.media = null;
++  state.create.mockResolvedValue({});
++  state.update.mockResolvedValue({});
++  vi.stubEnv("AUTH_URL", "https://dentora.test");
++});
++function request(bytes: Uint8Array, origin = "https://dentora.test") {
++  const form = new FormData();
++  form.append(
++    "file",
++    new File([new Uint8Array(bytes)], "test.jpg", { type: "image/jpeg" }),
++  );
++  form.append("purpose", "avatar");
++  return new Request("https://dentora.test/api/media", {
++    method: "POST",
++    headers: { origin },
++    body: form,
++  });
++}
++it("rejects unauthenticated and cross-origin uploads before touching storage", async () => {
++  expect(
++    (await POST(request(new Uint8Array(), "https://evil.test"))).status,
++  ).toBe(403);
++  state.viewer = undefined;
++  expect((await POST(request(new Uint8Array()))).status).toBe(401);
++  expect(uploadObject).not.toHaveBeenCalled();
++});
++it("saves only sanitized images and updates the authenticated user", async () => {
++  const input = await sharp({
++    create: { width: 32, height: 32, channels: 3, background: "red" },
++  })
++    .jpeg()
++    .toBuffer();
++  const response = await POST(request(input));
++  expect(response.status).toBe(201);
++  const result = await response.json();
++  expect(result.url).toBe("/api/media/" + result.id);
++  expect(state.update).toHaveBeenCalledWith({
++    where: { id: "owner" },
++    data: { image: result.url },
++  });
++  expect(
++    (await sharp(vi.mocked(uploadObject).mock.calls[0][1]).metadata()).format,
++  ).toBe("webp");
++});
++it("rejects files with a forged image extension and cleans storage after DB failure", async () => {
++  expect(
++    (await POST(request(new TextEncoder().encode("not jpeg")))).status,
++  ).toBe(400);
++  const input = await sharp({
++    create: { width: 16, height: 16, channels: 3, background: "red" },
++  })
++    .png()
++    .toBuffer();
++  state.create.mockRejectedValueOnce(new Error("db unavailable"));
++  expect((await POST(request(input))).status).toBe(503);
++  expect(deleteObject).toHaveBeenCalledOnce();
++});
++it("does not serve another user’s unattached image or a deleted post image", async () => {
++  state.media = {
++    ownerId: "other",
++    status: "READY",
++    objectKey: "secret",
++    post: null,
++    owner: { image: null },
++  };
++  const args = { params: Promise.resolve({ id: "picture" }) },
++    req = new Request("https://dentora.test/api/media/picture");
++  expect((await GET(req, args)).status).toBe(404);
++  state.media.post = { deletedAt: new Date() };
++  expect((await GET(req, args)).status).toBe(404);
++  expect(downloadObject).not.toHaveBeenCalled();
++  state.media.post.deletedAt = null;
++  expect((await GET(req, args)).status).toBe(200);
++  state.viewer = undefined;
++  expect((await GET(req, args)).status).toBe(401);
++});
+diff --git a/tests/social.integration.test.ts b/tests/social.integration.test.ts
+new file mode 100644
+index 0000000000000000000000000000000000000000..2979d4a537be753f79a4bb1c890ae9c85397e382
+--- /dev/null
++++ b/tests/social.integration.test.ts
+@@ -0,0 +1,158 @@
++import { beforeAll, afterAll, it, expect, vi } from "vitest";
++import { readFileSync } from "node:fs";
++import { PGlite } from "@electric-sql/pglite";
++import { PrismaPGlite } from "pglite-prisma-adapter";
++import { PrismaClient } from "@prisma/client";
++const state = vi.hoisted(() => ({ db: null as unknown as PrismaClient }));
++vi.mock("@/server/db", () => ({
++  get db() {
++    return state.db;
++  },
++}));
++vi.mock("@/server/auth", () => ({ auth: async () => null }));
++import { appRouter } from "../src/server/routers";
++let pg: PGlite, a: string, b: string;
++function caller(id: string) {
++  return appRouter.createCaller({
++    db: state.db,
++    session: { user: { id }, expires: "2099-01-01" },
++  });
++}
++beforeAll(async () => {
++  pg = new PGlite();
++  await pg.exec(
++    readFileSync(
++      "prisma/migrations/202610280001_initial/migration.sql",
++      "utf8",
++    ),
++  );
++  state.db = new PrismaClient({ adapter: new PrismaPGlite(pg) });
++  a = (
++    await state.db.user.create({
++      data: {
++        name: "Anna",
++        email: "anna@social.test",
++        username: "anna",
++        image: "/api/media/avatar-a",
++      },
++    })
++  ).id;
++  b = (
++    await state.db.user.create({
++      data: { name: "Ben", email: "ben@social.test", username: "ben" },
++    })
++  ).id;
++});
++afterAll(async () => {
++  await state.db.$disconnect();
++  await pg.close();
++});
++it("persists following across profile reads and supports unfollowing, without self-follow", async () => {
++  const api = caller(a);
++  await api.social.follow({ userId: b, follow: true });
++  await api.social.follow({ userId: b, follow: true });
++  const profile = await api.profile.public({ username: "ben" });
++  expect(profile?.following).toBe(true);
++  expect(profile?._count.follow_following).toBe(1);
++  expect(
++    (await api.profile.connections({ userId: b, kind: "followers" })).items[0]
++      .id,
++  ).toBe(a);
++  await expect(
++    api.social.follow({ userId: a, follow: true }),
++  ).rejects.toMatchObject({ code: "BAD_REQUEST" });
++  await api.social.follow({ userId: b, follow: false });
++  expect((await api.profile.public({ username: "ben" }))?.following).toBe(
++    false,
++  );
++});
++it("creates, likes, saves, comments and deletes with current counts and author photos", async () => {
++  const owner = caller(a),
++    viewer = caller(b),
++    post = await owner.social.create({ body: "Hallo Community" });
++  await viewer.social.like({ postId: post.id, liked: true });
++  await viewer.social.like({ postId: post.id, liked: true });
++  await viewer.social.save({ postId: post.id, saved: true });
++  const comment = await viewer.social.comment({
++    postId: post.id,
++    body: "Danke!",
++  });
++  const feed = await viewer.social.feed({ filter: "saved" });
++  expect(feed.items[0].author.image).toBe("/api/media/avatar-a");
++  expect(feed.items[0]._count).toEqual({ likes: 1, comments: 1 });
++  expect(
++    (await viewer.social.comments({ postId: post.id })).items[0].body,
++  ).toBe("Danke!");
++  await state.db.comment.update({
++    where: { id: comment.id },
++    data: { deletedAt: new Date() },
++  });
++  expect((await viewer.social.feed({})).items[0]._count.comments).toBe(0);
++  await expect(viewer.social.remove({ id: post.id })).rejects.toMatchObject({
++    code: "NOT_FOUND",
++  });
++  await owner.social.remove({ id: post.id });
++  expect((await viewer.social.feed({ filter: "saved" })).items).toHaveLength(0);
++  await expect(
++    viewer.social.save({ postId: post.id, saved: true }),
++  ).rejects.toMatchObject({ code: "NOT_FOUND" });
++  await expect(
++    viewer.social.comments({ postId: post.id }),
++  ).rejects.toMatchObject({ code: "NOT_FOUND" });
++  expect((await owner.profile.me()).user._count.post_author).toBe(0);
++});
++it("attaches only an owned unattached image, atomically, and allows image-only posts", async () => {
++  const image = await state.db.media.create({
++    data: {
++      ownerId: a,
++      objectKey: "a/photo.webp",
++      mimeType: "image/webp",
++      size: 100,
++      status: "READY",
++    },
++  });
++  const before = await state.db.post.count();
++  await expect(
++    caller(b).social.create({ body: "", mediaId: image.id }),
++  ).rejects.toMatchObject({ code: "BAD_REQUEST" });
++  expect(await state.db.post.count()).toBe(before);
++  const post = await caller(a).social.create({ body: "", mediaId: image.id });
++  expect(
++    (await caller(b).social.feed({})).items.find((p) => p.id === post.id)
++      ?.media_post[0].id,
++  ).toBe(image.id);
++  await expect(
++    caller(a).social.create({ body: "again", mediaId: image.id }),
++  ).rejects.toMatchObject({ code: "BAD_REQUEST" });
++  await expect(caller(a).social.create({ body: "   " })).rejects.toMatchObject({
++    code: "BAD_REQUEST",
++  });
++});
++it("paginates feeds without duplicates and respects private profiles and id fallback", async () => {
++  await state.db.post.createMany({
++    data: Array.from({ length: 25 }, (_, i) => ({
++      authorId: b,
++      body: `Topic ${i}`,
++    })),
++  });
++  const one = await caller(a).social.feed({ search: "Topic" }),
++    two = await caller(a).social.feed({
++      search: "Topic",
++      cursor: one.nextCursor,
++    });
++  expect(one.items).toHaveLength(20);
++  expect(two.items).toHaveLength(5);
++  expect(new Set([...one.items, ...two.items].map((p) => p.id)).size).toBe(25);
++  await state.db.user.update({
++    where: { id: b },
++    data: { publicProfile: false },
++  });
++  expect(await caller(a).profile.public({ username: "ben" })).toBeNull();
++  await expect(caller(a).social.feed({ authorId: b })).rejects.toMatchObject({
++    code: "NOT_FOUND",
++  });
++  expect((await caller(b).profile.public({ username: "~" + b }))?.isSelf).toBe(
++    true,
++  );
++  expect((await caller(a).profile.public({ username: "~" + a }))?.id).toBe(a);
++});

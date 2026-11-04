@@ -7,6 +7,7 @@ export const profileRouter = router({
       select: {
         id: true,
         name: true,
+        image: true,
         username: true,
         bio: true,
         university: true,
@@ -14,6 +15,13 @@ export const profileRouter = router({
         publicProfile: true,
         emailReminders: true,
         role: true,
+        _count: {
+          select: {
+            follow_following: true,
+            follow_follower: true,
+            post_author: { where: { deletedAt: null } },
+          },
+        },
       },
     });
     const game = await ctx.db.gameState.upsert({
@@ -53,27 +61,97 @@ export const profileRouter = router({
       }),
     ),
   public: publicProcedure
-    .input(z.object({ username: z.string() }))
-    .query(({ ctx, input }) =>
-      ctx.db.user.findFirst({
-        where: { username: input.username, publicProfile: true },
+    .input(z.object({ username: z.string().min(1).max(100) }))
+    .query(async ({ ctx, input }) => {
+      const viewerId = ctx.session?.user?.id;
+      const user = await ctx.db.user.findFirst({
+        where: {
+          ...(input.username.startsWith("~")
+            ? { id: input.username.slice(1) }
+            : { username: input.username }),
+          OR: [
+            { publicProfile: true },
+            ...(viewerId ? [{ id: viewerId }] : []),
+          ],
+        },
         select: {
           id: true,
           name: true,
+          image: true,
           username: true,
           bio: true,
           university: true,
           game: { select: { xp: true, streak: true } },
+          userBadge_user: { include: { badge: true } },
           _count: {
             select: {
               follow_following: true,
               follow_follower: true,
-              post_author: true,
+              post_author: { where: { deletedAt: null } },
             },
           },
         },
+      });
+      if (!user) return null;
+      const following = viewerId
+        ? await ctx.db.follow.findUnique({
+            where: {
+              followerId_followingId: {
+                followerId: viewerId,
+                followingId: user.id,
+              },
+            },
+            select: { id: true },
+          })
+        : null;
+      return { ...user, isSelf: viewerId === user.id, following: !!following };
+    }),
+  connections: protectedProcedure
+    .input(
+      z.object({
+        userId: z.string(),
+        kind: z.enum(["followers", "following"]),
+        cursor: z.string().optional(),
       }),
-    ),
+    )
+    .query(async ({ ctx, input }) => {
+      const visible = await ctx.db.user.findFirst({
+        where: {
+          id: input.userId,
+          OR: [{ publicProfile: true }, { id: ctx.userId }],
+        },
+        select: { id: true },
+      });
+      if (!visible) return { items: [], nextCursor: undefined };
+      const person = {
+        id: true,
+        name: true,
+        username: true,
+        image: true,
+      } as const;
+      const rows = await ctx.db.follow.findMany({
+        where:
+          input.kind === "followers"
+            ? { followingId: input.userId }
+            : { followerId: input.userId },
+        select: {
+          id: true,
+          follower: { select: person },
+          following: { select: person },
+        },
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+        take: 21,
+        ...(input.cursor ? { cursor: { id: input.cursor }, skip: 1 } : {}),
+      });
+      return {
+        items: rows
+          .slice(0, 20)
+          .map((row) =>
+            input.kind === "followers" ? row.follower : row.following,
+          ),
+        nextCursor: rows.length > 20 ? rows[19].id : undefined,
+      };
+    }),
   badges: protectedProcedure.query(({ ctx }) =>
     ctx.db.badge.findMany({
       include: { awards: { where: { userId: ctx.userId } } },

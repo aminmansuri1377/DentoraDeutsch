@@ -28,7 +28,7 @@ beforeAll(async () => {
     readFileSync(
       "prisma/migrations/202610280001_initial/migration.sql",
       "utf8",
-    ),
+    ) + readFileSync("prisma/migrations/202611040001_letter_questions/migration.sql", "utf8"),
   );
   state.db = new PrismaClient({ adapter: new PrismaPGlite(pg) });
   const user = await state.db.user.create({

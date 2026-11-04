@@ -13,7 +13,10 @@
     "db:seed": "tsx prisma/seed.ts",
     "db:check": "tsx scripts/check-db.ts",
     "format": "prettier --write src prisma docs",
-    "dev:local": "node scripts/dev.mjs --local"
+    "dev:local": "node scripts/dev.mjs --local",
+    "db:import:first-lesson": "tsx prisma/import-dentigo-first-lesson.ts",
+    "db:import:paths": "tsx prisma/import-reference-paths.ts",
+    "storage:setup": "tsx scripts/setup-storage.ts"
   },
   "dependencies": {
     "@auth/prisma-adapter": "latest",
@@ -35,7 +38,8 @@
     "stripe": "latest",
     "superjson": "^2.2.0",
     "tailwind-merge": "^3.0.0",
-    "zod": "^4.0.0"
+    "zod": "^4.0.0",
+    "sharp": "0.35.5"
   },
   "devDependencies": {
     "@electric-sql/pglite": "^0.4.3",

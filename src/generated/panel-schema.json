@@ -68,6 +68,10 @@
         {
           "name": "TRUE_FALSE",
           "dbName": null
+        },
+        {
+          "name": "LETTER_ORDER",
+          "dbName": null
         }
       ],
       "dbName": null
@@ -3162,6 +3166,20 @@
           "isReadOnly": false,
           "hasDefaultValue": false,
           "type": "Boolean",
+          "nativeType": null,
+          "isGenerated": false,
+          "isUpdatedAt": false
+        },
+        {
+          "name": "submittedText",
+          "kind": "scalar",
+          "isList": false,
+          "isRequired": false,
+          "isUnique": false,
+          "isId": false,
+          "isReadOnly": false,
+          "hasDefaultValue": false,
+          "type": "String",
           "nativeType": null,
           "isGenerated": false,
           "isUpdatedAt": false

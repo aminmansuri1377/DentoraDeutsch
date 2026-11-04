@@ -1,0 +1,409 @@
+.community {
+  max-width: 480px;
+  margin: auto;
+}
+.title {
+  margin: 6px 0 20px;
+}
+.title > span {
+  font-size: 12px;
+  color: #8b719f;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+}
+.title h1 {
+  font-size: 28px;
+  color: #49305e;
+  margin: 7px 0;
+}
+.tabs {
+  display: flex;
+  border-bottom: 1px solid #e8deef;
+  gap: 5px;
+  background: #fff;
+  padding: 4px;
+  border-radius: 14px 14px 0 0;
+}
+.tabs button {
+  flex: 1;
+  min-height: 48px;
+  border: 0;
+  border-bottom: 3px solid transparent;
+  background: none;
+  font-size: 13px;
+  font-weight: 700;
+  color: #8a7a96;
+  padding: 8px 4px;
+  cursor: pointer;
+}
+.tabs button[aria-selected="true"] {
+  border-color: #8853d0;
+  color: #7742b7;
+}
+.search {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  background: white;
+  border: 1px solid #ece4f3;
+  border-radius: 13px;
+  padding: 0 12px;
+  margin: 14px 0 18px;
+  color: #907ca2;
+}
+.search input {
+  border: 0 !important;
+  margin: 0;
+  background: transparent !important;
+  min-width: 0;
+}
+.post {
+  background: #fff;
+  border: 1px solid #eae2f1;
+  border-radius: 19px;
+  overflow: hidden;
+  margin-bottom: 18px;
+  box-shadow: 0 5px 18px #5a397205;
+}
+.author {
+  display: flex;
+  gap: 9px;
+  align-items: center;
+  padding: 15px;
+  background: #faf7fe;
+  border-bottom: 1px solid #f0e9f6;
+}
+.authorIdentity {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex: 1;
+  min-width: 0;
+  text-decoration: none;
+  color: #513764;
+}
+.authorIdentity > span:last-child {
+  min-width: 0;
+}
+.author strong {
+  font-size: 14px;
+  display: block;
+  overflow-wrap: anywhere;
+}
+.author small,
+.author time {
+  display: block;
+  font-size: 12px;
+  color: #91829b;
+  line-height: 1.5;
+  font-weight: 500;
+}
+.follow button {
+  border: 1px solid #d9c3ee;
+  border-radius: 10px;
+  background: #f5edff;
+  color: #7c49b5;
+  padding: 8px 10px;
+  min-height: 38px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.follow button[aria-pressed="true"] {
+  background: white;
+  color: #806d8f;
+}
+.follow small {
+  display: block;
+  font-size: 12px;
+  max-width: 120px;
+  color: #b43b58;
+}
+.body {
+  padding: 17px 18px;
+}
+.body p {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  color: #43324f;
+  font-size: 16px !important;
+  font-weight: 500;
+  line-height: 1.9 !important;
+  margin: 0;
+}
+.body button {
+  display: block;
+  margin-top: 12px;
+  border: 0;
+  background: transparent;
+  color: #8a4cc5;
+  font-weight: 700;
+  font-size: 13px;
+  cursor: pointer;
+}
+.postImage {
+  width: 100%;
+  max-height: 520px;
+  object-fit: contain;
+  display: block;
+  background: #f5f1f8;
+}
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 14px;
+}
+.actions > div {
+  display: flex;
+  gap: 5px;
+  margin-left: auto;
+  background: #f7f3fc;
+  border-radius: 13px;
+}
+.actions button {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  background: #f7f3fc;
+  border: 0;
+  border-radius: 12px;
+  min-height: 42px;
+  min-width: 42px;
+  justify-content: center;
+  padding: 9px;
+  color: #81738d;
+  font-weight: 600;
+  cursor: pointer;
+}
+.actions button[aria-pressed="true"] {
+  color: #9852cc;
+  background: #f0e3fb;
+}
+.createButton {
+  position: fixed;
+  z-index: 35;
+  bottom: 108px;
+  left: max(18px, calc(50% - 214px));
+  width: 58px;
+  height: 58px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(135deg, #ac76e9, #7944c9);
+  border: 3px solid #fff;
+  color: #fff;
+  box-shadow: 0 7px 20px #7944c94d;
+  cursor: pointer;
+}
+.composer {
+  background: white;
+  border: 1px solid #e5d7f2;
+  border-radius: 18px;
+  padding: 18px;
+  margin-bottom: 20px;
+  scroll-margin-top: 85px;
+}
+.editorHeading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+.editorHeading h2 {
+  font-size: 17px;
+  color: #5b3b74;
+}
+.editorHeading button {
+  border: 0;
+  background: #f6f0fc;
+  border-radius: 9px;
+  color: #8f71a6;
+  width: 36px;
+  height: 36px;
+  cursor: pointer;
+}
+.composer label,
+.comments label {
+  font-size: 14px;
+  font-weight: 600;
+  display: block;
+  margin-top: 12px;
+}
+.composer textarea,
+.comments textarea {
+  width: 100%;
+  font: inherit;
+  font-size: 16px;
+  line-height: 1.65;
+  padding: 12px;
+}
+.editorActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  margin: 12px 0;
+}
+.attach {
+  position: relative;
+  display: flex !important;
+  align-items: center;
+  gap: 7px;
+  font-size: 13px !important;
+  color: #8851bb;
+  cursor: pointer;
+  margin: 0 !important;
+}
+.attach input {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+.attach:focus-within {
+  outline: 3px solid #d3b1f3;
+  outline-offset: 4px;
+}
+.composer small {
+  font-size: 12px;
+  font-weight: 500;
+  color: #95869e;
+}
+.imagePreview {
+  position: relative;
+}
+.imagePreview img {
+  width: 100%;
+  max-height: 280px;
+  object-fit: contain;
+  border-radius: 12px;
+  background: #f6f1fa;
+}
+.imagePreview button {
+  position: absolute;
+  right: 7px;
+  top: 7px;
+  border: 0;
+  padding: 7px;
+  border-radius: 50%;
+  background: white;
+  color: #7d4c9e;
+}
+.comments {
+  border-top: 1px solid #eee5f4;
+  background: #fcfaff;
+  padding: 16px;
+}
+.comment {
+  display: flex;
+  gap: 9px;
+  margin-top: 20px;
+}
+.comment > div {
+  min-width: 0;
+}
+.comment strong {
+  font-size: 13px;
+  color: #715380;
+}
+.comment p {
+  font-size: 14px !important;
+  line-height: 1.7;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  margin: 5px 0;
+}
+.comment time {
+  font-size: 12px;
+  color: #a496ae;
+}
+.error {
+  color: #b03955 !important;
+  background: #fff0f4;
+  padding: 12px;
+  font-size: 13px !important;
+}
+.deleteConfirm {
+  padding: 12px 16px;
+  background: #fff4f5;
+}
+.deleteConfirm p {
+  font-size: 14px;
+}
+.deleteConfirm button {
+  padding: 8px 12px;
+  background: white;
+  color: #b13c57;
+  border: 1px solid #f3ced5;
+  border-radius: 9px;
+  margin-right: 8px;
+  cursor: pointer;
+}
+.community button:focus-visible,
+.post button:focus-visible {
+  outline: 3px solid #bc93e2;
+  outline-offset: 3px;
+}
+.community button:disabled,
+.post button:disabled {
+  opacity: 0.5;
+  cursor: wait;
+}
+
+.commentForm {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
+.commentForm label {
+  margin: 0;
+}
+.commentForm textarea {
+  display: block;
+  box-sizing: border-box;
+  min-height: 112px;
+  width: 100%;
+  margin: 0;
+  resize: vertical;
+}
+.commentFormActions {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 4px;
+}
+.commentFormActions button {
+  position: static;
+  min-height: 44px;
+  margin: 0;
+}
+.commentContent {
+  flex: 1;
+  min-width: 0;
+}
+.commentHeading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.commentHeading a {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.commentDelete {
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: 10px;
+  background: #fff0f4;
+  color: #b03955;
+}

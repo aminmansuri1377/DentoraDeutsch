@@ -1,5 +1,6 @@
 "use client";
-import { logoutAction } from "@/features/auth/actions";
+import { LogoutButton } from "./logout-button";
+import { AvatarEditor } from "./avatar-editor";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTRPC } from "@/trpc/provider";
 import { useAction } from "@/hooks/use-action";
@@ -24,6 +25,7 @@ export function SettingsPage() {
         description="Passe dein Profil und deine Lerngewohnheiten an."
       />
       <Card className="narrow">
+        <AvatarEditor image={user.image} name={user.name} />
         <form
           onSubmit={(e) => {
             e.preventDefault();
@@ -104,9 +106,7 @@ export function SettingsPage() {
           <p role="status">{action.message}</p>
         </form>
       </Card>
-      <Button variant="secondary" onClick={() => logoutAction()}>
-        Sicher abmelden
-      </Button>
+      <LogoutButton />
     </>
   );
 }

@@ -6,7 +6,10 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { ErrorNotice } from "@/components/ui/feedback";
+import { LetterAnswer } from "./letter-answer";
+import { StudyCard } from "./study-card";
 type AnswerFeedback = {
+  submittedText?: string | null;
   optionId: string;
   correct: boolean;
   explanation: string;
@@ -18,10 +21,18 @@ export type LessonSession = {
 export type LessonContent = {
   id: string;
   title: string;
-  blocks: { id: string; text: string; sourceUrl?: string | null }[];
+  blocks: {
+    id: string;
+    text: string;
+    kind?: string;
+    mediaUrl?: string | null;
+    sourceUrl?: string | null;
+  }[];
   questions: {
     id: string;
     prompt: string;
+    kind?: string;
+    letters?: string[];
     hint?: string | null;
     options: { id: string; text: string }[];
   }[];
@@ -41,7 +52,13 @@ export function LessonPlayer({
     attemptId: string,
     questionId: string,
     optionId: string,
-  ) => Promise<{ optionId?: string; correct: boolean; explanation: string }>;
+    submittedText?: string,
+  ) => Promise<{
+    optionId?: string;
+    correct: boolean;
+    explanation: string;
+    submittedText?: string | null;
+  }>;
   onFinish: (id: string) => Promise<{ score: number; xp: number }>;
   onBookmark: () => Promise<unknown>;
   demo?: boolean;
@@ -53,6 +70,7 @@ export function LessonPlayer({
 }) {
   const [step, setStep] = useState(0),
     [attempt, setAttempt] = useState<string>(),
+    [word, setWord] = useState(""),
     [selected, setSelected] = useState<string>(),
     [answers, setAnswers] = useState<Record<string, AnswerFeedback>>({}),
     [result, setResult] = useState<{ score: number; xp: number }>(),
@@ -103,6 +121,7 @@ export function LessonPlayer({
       }
       setStep(step + 1);
       setSelected(undefined);
+      setWord("");
       setHint(false);
     });
   }
@@ -148,7 +167,11 @@ export function LessonPlayer({
         {block ? (
           <>
             <span className="eyebrow">WISSEN ENTDECKEN</span>
-            <p className="lesson-text">{block.text}</p>
+            <StudyCard
+              text={block.text}
+              kind={block.kind}
+              mediaUrl={block.mediaUrl}
+            />
             {block.sourceUrl && (
               <a
                 className="text-link"
@@ -164,20 +187,34 @@ export function LessonPlayer({
           <>
             <span className="eyebrow">DEIN WISSENSCHECK</span>
             <h2>{question.prompt}</h2>
-            <div className="answers">
-              {question.options.map((o, i) => (
-                <button
-                  key={o.id}
-                  disabled={!!feedback || busy}
-                  aria-pressed={chosen === o.id}
-                  className={`answer ${chosen === o.id ? "chosen" : ""} ${feedback && chosen === o.id ? (feedback.correct ? "answer-correct" : "answer-incorrect") : ""}`}
-                  onClick={() => setSelected(o.id)}
-                >
-                  <span aria-hidden="true">{String.fromCharCode(65 + i)}</span>
-                  {o.text}
-                </button>
-              ))}
-            </div>
+            {question.kind === "LETTER_ORDER" ? (
+              <LetterAnswer
+                key={question.id}
+                letters={question.letters ?? []}
+                disabled={!!feedback || busy}
+                savedText={feedback?.submittedText}
+                onChange={setWord}
+              />
+            ) : (
+              <div
+                className={`answers ${question.kind === "TRUE_FALSE" ? "answers-binary" : ""}`}
+              >
+                {question.options.map((o, i) => (
+                  <button
+                    key={o.id}
+                    disabled={!!feedback || busy}
+                    aria-pressed={chosen === o.id}
+                    className={`answer ${chosen === o.id ? "chosen" : ""} ${feedback && chosen === o.id ? (feedback.correct ? "answer-correct" : "answer-incorrect") : ""}`}
+                    onClick={() => setSelected(o.id)}
+                  >
+                    <span aria-hidden="true">
+                      {String.fromCharCode(65 + i)}
+                    </span>
+                    {o.text}
+                  </button>
+                ))}
+              </div>
+            )}
             {question.hint && (
               <>
                 <Button variant="ghost" onClick={() => setHint(!hint)}>
@@ -215,17 +252,25 @@ export function LessonPlayer({
         )}
         {question && !feedback ? (
           <Button
-            disabled={!selected || busy}
+            disabled={
+              busy ||
+              (question.kind === "LETTER_ORDER"
+                ? !word || Array.from(word).length !== question.letters?.length
+                : !selected)
+            }
             loading={busy}
             onClick={() =>
               act(async () => {
                 const id = await ensureAttempt();
-                const response = await onAnswer(id, question.id, selected!);
+                const response =
+                  question.kind === "LETTER_ORDER"
+                    ? await onAnswer(id, question.id, "", word)
+                    : await onAnswer(id, question.id, selected!);
                 setAnswers((current) => ({
                   ...current,
                   [question.id]: {
                     ...response,
-                    optionId: response.optionId ?? selected!,
+                    optionId: response.optionId ?? selected ?? "",
                   },
                 }));
               })

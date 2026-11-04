@@ -47,23 +47,41 @@ export async function requireLesson(
       code: "FORBIDDEN",
       message: "Für diese Lektion brauchst du einen Kurszugang.",
     });
-  const previous = await tx.lesson.findFirst({
-    where: {
-      chapterId: lesson.chapterId,
-      status: "PUBLISHED",
-      position: { lt: lesson.position },
-    },
-    orderBy: { position: "desc" },
+  // Completed lessons remain replayable. Unfinished lessons unlock in course order,
+  // including across chapter boundaries; planned reference lessons are barriers.
+  const completed = await tx.lessonProgress.findUnique({
+    where: { userId_lessonId: { userId, lessonId } },
   });
-  if (
-    previous &&
-    !(await tx.lessonProgress.findUnique({
-      where: { userId_lessonId: { userId, lessonId: previous.id } },
-    }))
-  )
+  const incompleteBefore = completed
+    ? null
+    : await tx.lesson.findFirst({
+        where: {
+          chapter: { courseId: lesson.chapter.courseId },
+          AND: [
+            {
+              OR: [
+                { status: "PUBLISHED" },
+                { status: "DRAFT", slug: { startsWith: "dentigo-path-" } },
+              ],
+            },
+            {
+              OR: [
+                { chapter: { position: { lt: lesson.chapter.position } } },
+                {
+                  chapterId: lesson.chapterId,
+                  position: { lt: lesson.position },
+                },
+              ],
+            },
+          ],
+          progress: { none: { userId } },
+        },
+        select: { id: true },
+      });
+  if (incompleteBefore)
     throw new TRPCError({
       code: "FORBIDDEN",
-      message: "Schließe zuerst die vorherige Lektion ab.",
+      message: "Schließe zuerst die vorherigen Lektionen ab.",
     });
   return { lesson, ...access };
 }

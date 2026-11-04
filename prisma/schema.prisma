@@ -28,6 +28,7 @@ enum ContentStatus {
 enum QuestionKind {
   SINGLE_CHOICE
   TRUE_FALSE
+  LETTER_ORDER
 }
 
 enum ProductKind {
@@ -292,6 +293,7 @@ model Attempt {
 model AttemptAnswer {
   id         String       @id @default(cuid())
   correct    Boolean
+  submittedText String?
   answeredAt DateTime     @default(now())
   attemptId  String
   attempt    Attempt      @relation("AttemptAnswer_attempt", fields: [attemptId], references: [id], onDelete: Cascade)

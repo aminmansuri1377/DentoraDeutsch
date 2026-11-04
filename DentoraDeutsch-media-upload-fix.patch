@@ -1,0 +1,364 @@
+diff --git a/src/app/api/media/route.ts b/src/app/api/media/route.ts
+index 02c0de1..4a140a3 100644
+--- a/src/app/api/media/route.ts
++++ b/src/app/api/media/route.ts
+@@ -6,7 +6,7 @@ import { isTrustedMutation } from "@/server/security/request-origin";
+ import { MAX_UPLOAD_BYTES, prepareImage } from "@/server/media/image";
+ import { uploadObject, deleteObject } from "@/server/media/storage";
+ export const runtime = "nodejs";
+-export const maxDuration = 30;
++export const maxDuration = 60;
+ const error = (message: string, status: number) =>
+   Response.json({ message }, { status });
+ export async function POST(request: Request) {
+diff --git a/src/features/community/components/post-composer.tsx b/src/features/community/components/post-composer.tsx
+index b9728e7..ea40cff 100644
+--- a/src/features/community/components/post-composer.tsx
++++ b/src/features/community/components/post-composer.tsx
+@@ -14,6 +14,7 @@ export function PostComposer({
+   onPublished: () => void;
+ }) {
+   const [body, setBody] = useState(""),
++    [pendingFile, setPendingFile] = useState<File | null>(null),
+     [media, setMedia] = useState<{ id: string; url: string } | null>(null);
+   const api = useTRPC(),
+     refresh = useSocialRefresh(),
+@@ -28,6 +29,15 @@ export function PostComposer({
+       },
+     }),
+   );
++  async function uploadFile(file: File) {
++    setPendingFile(file);
++    try {
++      setMedia(await upload.mutateAsync(file));
++      setPendingFile(null);
++    } catch {
++      // Keep the selected file and text so the user can retry.
++    }
++  }
+   const busy = create.isPending || upload.isPending;
+   return (
+     <section className={styles.composer} aria-label="Neuen Beitrag erstellen">
+@@ -40,7 +50,8 @@ export function PostComposer({
+       <form
+         onSubmit={(e) => {
+           e.preventDefault();
+-          create.mutate({ body, mediaId: media?.id });
++          if (!busy && !pendingFile)
++            create.mutate({ body, mediaId: media?.id });
+         }}
+       >
+         <label htmlFor="post-body">Dein Beitrag</label>
+@@ -78,22 +89,43 @@ export function PostComposer({
+                 const file = e.target.files?.[0];
+                 e.target.value = "";
+                 if (file) {
+-                  try {
+-                    setMedia(await upload.mutateAsync(file));
+-                  } catch {}
++                  await uploadFile(file);
+                 }
+               }}
+             />
+           </label>
+           <button
+             className="button primary"
+-            disabled={busy || (!body.trim() && !media)}
++            disabled={busy || !!pendingFile || (!body.trim() && !media)}
+           >
+             <Send size={16} />
+             {create.isPending ? "Wird veröffentlicht …" : "Veröffentlichen"}
+           </button>
+         </div>
+         <small>JPG, PNG oder WebP · max. 2 MB · {body.length}/5000</small>
++        {pendingFile && upload.isError && (
++          <div className={styles.editorActions}>
++            <button
++              type="button"
++              className="button"
++              disabled={busy}
++              onClick={() => void uploadFile(pendingFile)}
++            >
++              Bildupload erneut versuchen
++            </button>
++            <button
++              type="button"
++              className="button"
++              disabled={busy}
++              onClick={() => {
++                setPendingFile(null);
++                upload.reset();
++              }}
++            >
++              Bildauswahl verwerfen
++            </button>
++          </div>
++        )}
+         {(upload.error || create.error) && (
+           <p role="alert" className={styles.error}>
+             {upload.error?.message || create.error?.message}
+diff --git a/src/features/media/use-image-upload.ts b/src/features/media/use-image-upload.ts
+index 0e10096..55cc13a 100644
+--- a/src/features/media/use-image-upload.ts
++++ b/src/features/media/use-image-upload.ts
+@@ -13,10 +13,17 @@ export function useImageUpload(purpose: "avatar" | "post") {
+       const form = new FormData();
+       form.set("file", file);
+       form.set("purpose", purpose);
+-      const response = await fetch("/api/media", {
+-        method: "POST",
+-        body: form,
+-      });
++      let response: Response;
++      try {
++        response = await fetch("/api/media", {
++          method: "POST",
++          body: form,
++        });
++      } catch {
++        throw new Error(
++          "Die Verbindung zur App wurde unterbrochen. Bitte versuche den Bildupload erneut.",
++        );
++      }
+       let result: { id: string; url: string; message?: string };
+       try {
+         result = await response.json();
+diff --git a/src/server/media/storage.ts b/src/server/media/storage.ts
+index 860885e..dd9a822 100644
+--- a/src/server/media/storage.ts
++++ b/src/server/media/storage.ts
+@@ -18,22 +18,65 @@ function settings() {
+     headers: { apikey: key, Authorization: `Bearer ${key}` },
+   };
+ }
++// Only server-generated, unique object keys may be passed here. Reusing the
++// same key and bytes makes a retry safe even if the first response was lost.
+ export async function uploadObject(key: string, bytes: Buffer) {
+   const s = settings();
+-  const response = await fetch(`${s.base}/object/${s.bucket}/${key}`, {
+-    method: "POST",
+-    headers: {
+-      ...s.headers,
+-      "Content-Type": "image/webp",
+-      "x-upsert": "false",
+-    },
+-    body: new Uint8Array(bytes),
+-    signal: AbortSignal.timeout(20000),
+-  });
+-  if (!response.ok)
++  const url = `${s.base}/object/${s.bucket}/${key}`;
++  const retryable = new Set([408, 429, 500, 502, 503, 504]);
++  for (let attempt = 1; attempt <= 3; attempt++) {
++    let status: number | undefined;
++    let networkFailure = false;
++    try {
++      const response = await fetch(url, {
++        method: "POST",
++        headers: {
++          ...s.headers,
++          "Content-Type": "image/webp",
++          "x-upsert": "true",
++        },
++        body: new Uint8Array(bytes),
++        signal: AbortSignal.timeout(12000),
++        cache: "no-store",
++      });
++      status = response.status;
++      await response.body?.cancel();
++      if (response.ok) return;
++    } catch (error) {
++      networkFailure = true;
++      // Never log URLs, credentials, response bodies or arbitrary error messages.
++      const cause = error instanceof Error ? error.cause : undefined;
++      const rawCode =
++        cause && typeof cause === "object" && "code" in cause
++          ? String(cause.code)
++          : error instanceof Error
++            ? error.name
++            : "UNKNOWN";
++      const code = /^[A-Za-z0-9_]{1,60}$/.test(rawCode) ? rawCode : "UNKNOWN";
++      console.warn("[media:storage-upload]", { attempt, code });
++      if (/CERT|TLS|SSL/.test(code)) {
++        throw new Error(
++          "Die sichere Verbindung zum Bildspeicher ist fehlgeschlagen. Bitte kontaktiere den Support.",
++        );
++      }
++    }
++    if (status !== undefined) {
++      console.warn("[media:storage-upload]", { attempt, status });
++      if (!retryable.has(status))
++        throw new Error(
++          "Der Bildspeicher hat den Upload abgelehnt. Bitte prüfe die Storage-Konfiguration.",
++        );
++    }
++    if (attempt < 3) {
++      await new Promise((resolve) => setTimeout(resolve, attempt * 400));
++      continue;
++    }
+     throw new Error(
+-      "Das Bild konnte nicht gespeichert werden. Bitte prüfe den Storage-Bucket und versuche es erneut.",
++      networkFailure
++        ? "Der Bildspeicher ist momentan nicht erreichbar. Dein Text bleibt erhalten. Bitte versuche den Bildupload erneut."
++        : "Der Bildspeicher ist momentan ausgelastet. Bitte versuche den Bildupload erneut.",
+     );
++  }
+ }
+ export async function downloadObject(key: string) {
+   const s = settings();
+diff --git a/tests/post-upload-retry.test.tsx b/tests/post-upload-retry.test.tsx
+new file mode 100644
+index 0000000..44059a0
+--- /dev/null
++++ b/tests/post-upload-retry.test.tsx
+@@ -0,0 +1,71 @@
++// @vitest-environment jsdom
++import { afterEach, expect, it, vi } from "vitest";
++import {
++  cleanup,
++  fireEvent,
++  render,
++  screen,
++  waitFor,
++} from "@testing-library/react";
++const state = vi.hoisted(() => ({
++  upload: vi.fn(),
++  publish: vi.fn(),
++}));
++vi.mock("@/trpc/provider", () => ({
++  useTRPC: () => ({ social: { create: { mutationOptions: () => ({}) } } }),
++}));
++vi.mock("@tanstack/react-query", () => ({
++  useMutation: () => ({ mutate: state.publish, isPending: false, error: null }),
++}));
++vi.mock("@/features/community/use-social-refresh", () => ({
++  useSocialRefresh: () => vi.fn(),
++}));
++vi.mock("@/features/media/use-image-upload", () => ({
++  useImageUpload: () => ({
++    mutateAsync: state.upload,
++    isPending: false,
++    isError: true,
++    error: new Error("Upload fehlgeschlagen"),
++    reset: vi.fn(),
++  }),
++}));
++import { PostComposer } from "../src/features/community/components/post-composer";
++afterEach(() => {
++  cleanup();
++  vi.resetAllMocks();
++});
++it("keeps text and the file after failure, blocks publication, and retries that file", async () => {
++  state.upload
++    .mockRejectedValueOnce(new Error("fetch failed"))
++    .mockResolvedValueOnce({ id: "image-id", url: "/api/media/image-id" });
++  const { container } = render(
++    <PostComposer onClose={vi.fn()} onPublished={vi.fn()} />,
++  );
++  fireEvent.change(screen.getByLabelText("Dein Beitrag"), {
++    target: { value: "Mein Beitrag" },
++  });
++  const file = new File(["image"], "post.webp", { type: "image/webp" });
++  fireEvent.change(container.querySelector('input[type="file"]')!, {
++    target: { files: [file] },
++  });
++  await waitFor(() => expect(state.upload).toHaveBeenCalledOnce());
++  const publish = screen.getByRole("button", {
++    name: "Veröffentlichen",
++  }) as HTMLButtonElement;
++  expect(publish.disabled).toBe(true);
++  fireEvent.submit(container.querySelector("form")!);
++  expect(state.publish).not.toHaveBeenCalled();
++  fireEvent.click(
++    await screen.findByRole("button", { name: "Bildupload erneut versuchen" }),
++  );
++  await waitFor(() => expect(publish.disabled).toBe(false));
++  expect(state.upload.mock.calls[1][0]).toBe(file);
++  expect(
++    (screen.getByLabelText("Dein Beitrag") as HTMLTextAreaElement).value,
++  ).toBe("Mein Beitrag");
++  fireEvent.submit(container.querySelector("form")!);
++  expect(state.publish).toHaveBeenCalledWith({
++    body: "Mein Beitrag",
++    mediaId: "image-id",
++  });
++});
+diff --git a/tests/storage-upload.test.ts b/tests/storage-upload.test.ts
+new file mode 100644
+index 0000000..b979f7f
+--- /dev/null
++++ b/tests/storage-upload.test.ts
+@@ -0,0 +1,74 @@
++import { afterEach, beforeEach, expect, it, vi } from "vitest";
++import { uploadObject } from "../src/server/media/storage";
++const fetchMock = vi.fn();
++beforeEach(() => {
++  vi.useFakeTimers();
++  vi.stubGlobal("fetch", fetchMock);
++  fetchMock.mockReset();
++  vi.stubEnv("SUPABASE_URL", "https://project.supabase.co");
++  vi.stubEnv("SUPABASE_SERVICE_ROLE_KEY", "secret-not-for-logs");
++  vi.spyOn(console, "warn").mockImplementation(() => {});
++});
++afterEach(() => {
++  vi.useRealTimers();
++  vi.unstubAllGlobals();
++  vi.unstubAllEnvs();
++  vi.restoreAllMocks();
++});
++it("recovers from a lost response with the exact same key and bytes", async () => {
++  fetchMock
++    .mockRejectedValueOnce(new TypeError("fetch failed"))
++    .mockResolvedValueOnce(new Response("{}", { status: 200 }));
++  const bytes = Buffer.from("image");
++  const result = uploadObject("user/random.webp", bytes);
++  await vi.runAllTimersAsync();
++  await result;
++  expect(fetchMock).toHaveBeenCalledTimes(2);
++  const [first, second] = fetchMock.mock.calls;
++  expect(first[0]).toBe(second[0]);
++  expect(first[1].body).toEqual(second[1].body);
++  expect(second[1].headers["x-upsert"]).toBe("true");
++});
++it("retries temporary HTTP failures but stops after three attempts", async () => {
++  fetchMock.mockImplementation(async () => new Response("", { status: 503 }));
++  const result = expect(
++    uploadObject("user/random.webp", Buffer.from("x")),
++  ).rejects.toThrow("ausgelastet");
++  await vi.runAllTimersAsync();
++  await result;
++  expect(fetchMock).toHaveBeenCalledTimes(3);
++});
++it("does not retry invalid credentials or bucket permissions", async () => {
++  fetchMock.mockResolvedValueOnce(new Response("", { status: 403 }));
++  await expect(
++    uploadObject("user/random.webp", Buffer.from("x")),
++  ).rejects.toThrow("abgelehnt");
++  expect(fetchMock).toHaveBeenCalledTimes(1);
++});
++it("reports exhausted network failures without exposing credentials", async () => {
++  fetchMock.mockRejectedValue(
++    new TypeError("secret-not-for-logs", {
++      cause: { code: "ECONNRESET" },
++    }),
++  );
++  const result = expect(
++    uploadObject("user/random.webp", Buffer.from("x")),
++  ).rejects.toThrow("momentan nicht erreichbar");
++  await vi.runAllTimersAsync();
++  await result;
++  expect(fetchMock).toHaveBeenCalledTimes(3);
++  expect(JSON.stringify(vi.mocked(console.warn).mock.calls)).not.toContain(
++    "secret-not-for-logs",
++  );
++});
++it("does not retry certificate errors or weaken TLS", async () => {
++  fetchMock.mockRejectedValue(
++    new TypeError("fetch failed", {
++      cause: { code: "SELF_SIGNED_CERT_IN_CHAIN" },
++    }),
++  );
++  await expect(
++    uploadObject("user/random.webp", Buffer.from("x")),
++  ).rejects.toThrow("sichere Verbindung");
++  expect(fetchMock).toHaveBeenCalledTimes(1);
++});

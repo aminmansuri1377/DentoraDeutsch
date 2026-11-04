@@ -1,0 +1,1722 @@
+diff --git a/.env.example b/.env.example
+index 17ddf9b..6441b47 100644
+--- a/.env.example
++++ b/.env.example
+@@ -11,4 +11,6 @@ CRON_SECRET=""
+ # Explicit test installation only. Set false before public deployment.
+ ENABLE_DEMO_AUTH="true"
+ PANEL_PASSWORD="1111"
+-DATABASE_SSL_CA_FILE="./certs/supabase-ca.crt"
+\ No newline at end of file
++DATABASE_SSL_CA_FILE="./certs/supabase-ca.crt"
++# Optional additional exact app origin. On Vercel Production set this to your live URL.
++# APP_URL="https://dentora-deutsch.vercel.app"
+diff --git a/docs/VERCEL-AND-FIRST-LESSON.md b/docs/VERCEL-AND-FIRST-LESSON.md
+new file mode 100644
+index 0000000..36f92c5
+--- /dev/null
++++ b/docs/VERCEL-AND-FIRST-LESSON.md
+@@ -0,0 +1,37 @@
++# Vercel mutations and the first reference lesson
++
++Base: `ab4e611267ac5178610634ac03079c3cd9827453` (master).
++
++## Apply
++
++```powershell
++git apply --check .\DentoraDeutsch-vercel-first-lesson.patch
++git apply .\DentoraDeutsch-vercel-first-lesson.patch
++npm run db:generate
++npm run db:migrate
++npm run db:import:first-lesson
++```
++
++Run the migration/import locally using the existing working Supabase environment and CA configuration. The migration adds LETTER_ORDER and nullable AttemptAnswer.submittedText; it does not reset tables. The importer adds a separate course (`dentigo-endodontologie`) at the top of the catalog and lesson (`dentigo-744-pulpa`), preserving all existing samples, users, attempts and progress. It can be run again without duplicates; it does not overwrite subsequent editorial changes. A newly imported lesson is published only after all its contents are saved.
++
++In Vercel Production set both AUTH_URL and APP_URL to `https://dentora-deutsch.vercel.app`. Keep local AUTH_URL at localhost. Push the patch changes and redeploy after the migration succeeds. Do not run the content import as part of every Vercel build.
++
++## 403 diagnosis
++
++The existing POST handler rejects any Origin different from AUTH_URL and returns plain text Forbidden. That matches the screenshot's JSON parse failure. Actual Production environment values were not available for inspection. The new helper accepts exact configured APP_URL/AUTH_URL and the deployment domains supplied by Vercel; it never trusts forwarded headers or a wildcard vercel.app suffix. Missing, malformed or foreign Origins remain rejected. See https://vercel.com/docs/environment-variables/system-environment-variables . Non-JSON errors now produce a readable German message rather than Unexpected token F.
++
++## Observed source and precise scope
++
++Reviewed through the authorized browser on 2026-11-04: https://app.dentigoapp.com/fa/lesson/744 . The source currently begins Endodontics with "Structure of the pulp: four zones and their cells". This patch imports that ONE complete lesson, not all 33 chapters, nor the remaining four lessons of chapter one.
++
++Observed sequence: two study pages, three single-choice questions (positions 1, 2, 4), one true/false question (3), one letter-order question (5), then results. German content preserves the page division, prompts, options and answer explanations. Letter ordering uses ZELLREICHE for German grammar. Correctness is checked on the server, not inferred from the chosen answer ID. Saved letter answers survive reopening and cannot be changed retroactively.
++
++The histology image is packaged locally with the original caption attribution. The source SVG diagram is adapted with German labels and equivalent geometry; it is not pixel-identical. App colors remain purple. This is not a claim of pixel-identical reproduction of every source control: source image-export, its exact reward formula, timed completion screen and question hint text have not been replicated. Existing bookmarking/reporting/highlight tools remain.
++
++The original study prose makes stronger general claims about repair capacity and permeability than the source's own question explanations. Both are translated without silently rewriting the source. The lesson is not marked reviewedAt/reviewerName; the dental editorial team should reconcile these claims and review the German terminology before clinical publication. The source attributes the histology figure to Cohen's Pathways of the Pulp; retain the team's applicable image permissions and attribution.
++
++## Validation
++
++Verified: 59 tests in 17 suites passed (`npx vitest run --maxWorkers=2`); production build passed.
++
++Regression coverage includes deployment origin allowlisting, foreign/missing Origin rejection, plain-text 403 handling, idempotent content import, all five answers, incorrect letter scoring, saved-answer restoration and prevention of altered resubmissions. No production database credentials are used in tests. A passing local test/build is not a claim that the user's Vercel deployment was modified or verified live.
+diff --git a/package.json b/package.json
+index 750bbbf..73d7a2e 100644
+--- a/package.json
++++ b/package.json
+@@ -13,7 +13,8 @@
+     "db:seed": "tsx prisma/seed.ts",
+     "db:check": "tsx scripts/check-db.ts",
+     "format": "prettier --write src prisma docs",
+-    "dev:local": "node scripts/dev.mjs --local"
++    "dev:local": "node scripts/dev.mjs --local",
++    "db:import:first-lesson": "tsx prisma/import-dentigo-first-lesson.ts"
+   },
+   "dependencies": {
+     "@auth/prisma-adapter": "latest",
+diff --git a/prisma/content/dentigo-744.ts b/prisma/content/dentigo-744.ts
+new file mode 100644
+index 0000000..b54d027
+--- /dev/null
++++ b/prisma/content/dentigo-744.ts
+@@ -0,0 +1,103 @@
++/** Translated from the authorized browser review of Dentigo lesson 744 on 2026-11-04.
++ * Two study pages followed by five questions. Clinical editorial review remains required.
++ */
++export const pulpLesson = {
++  slug: "dentigo-744-pulpa",
++  title: "Aufbau der Pulpa: vier Zonen und ihre Zellen",
++  blocks: [
++    {
++      title: "Vier Zonen – von der Dentinwand zum Zentrum",
++      paragraphs: [
++        "Die Pulpa ist keine einheitliche Gewebemasse. Sie besitzt vier unterschiedliche Zonen, die von der Dentinwand zum Zentrum angeordnet sind:",
++        "1. Odontoblastenschicht – liegt direkt am Prädentin und bildet Dentin.\n2. Zellarme Zone (Weil-Zone) – ein zellarmer Streifen, durch den der Raschkow-Nervenplexus und subodontoblastische Kapillaren verlaufen.\n3. Zellreiche Zone – das eigentliche Reservoir der Pulpa: Fibroblasten, mesenchymale Stammzellen und residente Immunzellen.\n4. Pulpakern – enthält die größeren Blutgefäße und Nerven.",
++        "Ein oft übersehener Punkt: Die beiden mittleren Zonen sind in der Kronenpulpa deutlich ausgeprägt, in der Wurzelpulpa dagegen wesentlich weniger. Das bedeutet, dass die Abwehr- und Reparaturfähigkeit der Pulpa in der Krone größer ist als in der Wurzel.",
++      ],
++      caption:
++        "Histologischer Schnitt durch die reife Pulpa. Von oben nach unten: Dentin, Prädentin, Odontoblastenschicht, zellarme Zone, zellreiche Zone und Pulpakern. Die hohe Kerndichte der zellreichen Zone ist deutlich sichtbar. Quelle: Cohen’s Pathways of the Pulp, 12. Auflage, Abb. 13.1.",
++    },
++    {
++      title:
++        "Odontoblasten: kein Ersatz durch Teilung, aber durch Differenzierung",
++      paragraphs: [
++        "Odontoblasten sind postmitotische Zellen: Sie teilen sich nicht. Ein abgestorbener Odontoblast ist dauerhaft verloren.",
++        "Odontoblasten sind durch Gap Junctions verbunden. Diese koordinieren die Sekretion und ermöglichen eine gleichmäßige Prädentinbildung. Im apikalen Zellbereich regulieren Tight Junctions die Durchlässigkeit der Schicht. Die Kavitätenpräparation stört diese Verbindungen und erhöht die Dentinpermeabilität.",
++        "Die Pulpa befindet sich jedoch nicht in einer Sackgasse: Mesenchymale Stammzellen der zellreichen Zone können zu odontoblastenähnlichen Zellen differenzieren und Reparaturdentin bilden. Es ist unregelmäßiger, tubulusärmer und schwächer als das ursprüngliche Dentin, bildet aber eine Barriere.",
++      ],
++      diagram: [
++        "Dentin",
++        "Prädentin",
++        "Tight Junctions: regulieren die Durchlässigkeit; können durch Präparation geschädigt werden",
++        "Gap Junctions: Signalübertragung und koordinierte Sekretion",
++        "Odontoblastenschicht: postmitotisch, keine Zellteilung",
++        "Zellarme Zone: Raschkow-Plexus",
++        "Zellreiche Zone: Stammzellreservoir",
++        "Mesenchymale Stammzelle → Differenzierung → odontoblastenähnliche Zelle",
++        "Reparaturdentin: unregelmäßig und tubulusarm. Ersatz durch Differenzierung, nicht durch Teilung.",
++      ],
++      caption:
++        "Odontoblastenschicht: Gap Junctions ermöglichen Kommunikation und koordinierte Sekretion; Tight Junctions regulieren die Durchlässigkeit. Verlorene Odontoblasten werden über Stammzelldifferenzierung ersetzt. Das Produkt ist Reparaturdentin. Quelle: Cohen’s Pathways of the Pulp, 12. Auflage, Kapitel 13.",
++    },
++  ],
++  questions: [
++    {
++      kind: "SINGLE_CHOICE",
++      prompt:
++        "Ein Student schließt aus der Bezeichnung ‚zellfreie Zone‘, dass dieser Streifen biologisch unwichtig sei und ignoriert werden könne. Wo liegt der Denkfehler?",
++      options: [
++        "Der Name ist falsch: Dieser Streifen ist tatsächlich der zellreichste Teil der Kronenpulpa.",
++        "Der Name beschreibt die geringe Zelldichte; die Zone enthält Nervenfasern und Kapillaren.",
++        "Es liegt kein Fehler vor: Der Streifen ist ein leerer, funktionsloser Raum zwischen zwei Zellschichten.",
++        "Dieser Streifen kommt nur in Milchzähnen vor und verschwindet in bleibenden Zähnen.",
++      ],
++      correct: 1,
++      explanation:
++        "Die sogenannte zellfreie oder zellarme Weil-Zone ist kein leerer Raum. Sie enthält Nervenfasern, Kapillaren und Zellfortsätze. Ihr Name beschreibt die relative Zelldichte.",
++    },
++    {
++      kind: "SINGLE_CHOICE",
++      prompt:
++        "Welche Aussage zum Unterschied der zellreichen Zone in Kronen- und Wurzelpulpa trifft zu?",
++      options: [
++        "Die Wurzelpulpa besitzt keine Odontoblasten und bildet kein Tertiärdentin.",
++        "Die Blutversorgung der Wurzelpulpa stammt aus dem Desmodont.",
++        "Die zellreiche Zone ist in der Krone deutlich, in der Wurzel weniger ausgeprägt.",
++        "Die Kronenpulpa wird teilweise durch Speichel ernährt.",
++      ],
++      correct: 2,
++      explanation:
++        "Die zellreiche Zone und die Abgrenzung der Schichten sind in der Kronenpulpa deutlicher. Dieser Unterschied allein belegt keine grundsätzlich bessere Reparaturfähigkeit einer Region. Auch Blutversorgung, Entzündung, Kontamination und die Gesundheit des verbleibenden Gewebes sind entscheidend.",
++    },
++    {
++      kind: "TRUE_FALSE",
++      prompt:
++        "Geschädigte Odontoblasten werden durch Teilung benachbarter gesunder Odontoblasten ersetzt.",
++      options: ["Richtig", "Falsch"],
++      correct: 1,
++      explanation:
++        "Die Aussage ist falsch. Reife Odontoblasten teilen sich nicht. Unter geeigneten Bedingungen können Vorläuferzellen zu odontoblastenähnlichen Zellen differenzieren. Das ist etwas anderes als die Teilung benachbarter gesunder Odontoblasten.",
++    },
++    {
++      kind: "SINGLE_CHOICE",
++      prompt:
++        "Welcher Zusammenhang zwischen einer Schädigung von Zellkontakten in der Odontoblastenschicht und ihrer möglichen Folge ist richtig?",
++      options: [
++        "Der Verlust von Gap Junctions verstärkt die direkte Kommunikation zwischen Zellen.",
++        "Eine Störung der Tight Junctions setzt den Transport zwischen den Zellen zwangsläufig auf null.",
++        "Eine Zunahme der Gap Junctions stoppt zwangsläufig die Dentinbildung.",
++        "Eine Störung der Tight Junctions kann die Regulation des parazellulären Transports beeinträchtigen und den Stoffdurchtritt erhöhen.",
++      ],
++      correct: 3,
++      explanation:
++        "Tight Junctions tragen zur Regulation des Stofftransports zwischen den Zellen bei. Eine Schädigung kann diese Regulation stören. Diese Wirkung darf nicht mit sämtlichen Faktoren gleichgesetzt werden, die die Durchlässigkeit der Dentintubuli bestimmen.",
++    },
++    {
++      kind: "LETTER_ORDER",
++      prompt:
++        "Die Zone mit höherer Zelldichte zwischen der zellarmen Weil-Zone und dem zentralen Pulpagewebe wird in der Kronenpulpa als ______ Zone bezeichnet.",
++      options: ["ZELLREICHE"],
++      correct: 0,
++      explanation:
++        "Die Lösung lautet ‚zellreiche‘. Diese Zone liegt zentral der zellarmen Zone und enthält Fibroblasten und undifferenzierte Zellen. Pulpastammzellen sind nicht ausschließlich dort zu finden; auch perivaskuläre Bereiche sind wichtig.",
++    },
++  ],
++} as const;
+diff --git a/prisma/import-dentigo-first-lesson.ts b/prisma/import-dentigo-first-lesson.ts
+new file mode 100644
+index 0000000..2228fe3
+--- /dev/null
++++ b/prisma/import-dentigo-first-lesson.ts
+@@ -0,0 +1,23 @@
++import "../scripts/load-env";
++import { PrismaClient } from "@prisma/client";
++import { PrismaPg } from "@prisma/adapter-pg";
++import { databaseConfig } from "../src/server/database/config";
++import { createSeedRunner } from "./seed-runner";
++import { importFirstLesson } from "./import-first-lesson";
++const runner = createSeedRunner(
++  () =>
++    new PrismaClient({
++      adapter: new PrismaPg({ ...databaseConfig(), max: 1 }),
++    }),
++);
++try {
++  await importFirstLesson(runner.run);
++  console.log("IMPORT_OK: Endodontologie – 2 Lernseiten, 5 Fragen.");
++} catch {
++  console.error(
++    "IMPORT_FAILED: Prüfe Migrationen und Datenbankverbindung. Bereits importierte Inhalte bleiben erhalten; der Import kann wiederholt werden.",
++  );
++  process.exitCode = 1;
++} finally {
++  await runner.close();
++}
+diff --git a/prisma/import-first-lesson.ts b/prisma/import-first-lesson.ts
+new file mode 100644
+index 0000000..95c30ff
+--- /dev/null
++++ b/prisma/import-first-lesson.ts
+@@ -0,0 +1,118 @@
++import type { SeedOperation } from "./seed-runner";
++import { pulpLesson } from "./content/dentigo-744";
++/** Isolated content namespace: never overwrites existing lessons, answers or progress. */
++export async function importFirstLesson(run: SeedOperation) {
++  const specialty = await run((db) =>
++    db.specialty.upsert({
++      where: { slug: "dentigo-endodontologie" },
++      create: {
++        slug: "dentigo-endodontologie",
++        title: "Endodontologie",
++        description: "Biologische Grundlagen: Pulpa und Dentin",
++        position: -1,
++      },
++      update: {},
++    }),
++  );
++  const course = await run((db) =>
++    db.course.upsert({
++      where: { slug: "dentigo-endodontologie" },
++      create: {
++        slug: "dentigo-endodontologie",
++        specialtyId: specialty.id,
++        title: "Endodontologie: Pulpa und Dentin",
++        description:
++          "Deutsche Übertragung der ersten Lektion des Referenzlernwegs.",
++        status: "PUBLISHED",
++        access: "FREE",
++      },
++      update: {},
++    }),
++  );
++  const chapter = await run((db) =>
++    db.chapter.upsert({
++      where: { courseId_position: { courseId: course.id, position: 1 } },
++      create: {
++        courseId: course.id,
++        position: 1,
++        title: "Biologische Grundlagen: der Pulpa-Dentin-Komplex",
++      },
++      update: {},
++    }),
++  );
++  // Publish only after all content exists. Interrupted imports remain safely hidden.
++  const lesson = await run((db) =>
++    db.lesson.upsert({
++      where: { slug: pulpLesson.slug },
++      create: {
++        slug: pulpLesson.slug,
++        title: pulpLesson.title,
++        chapterId: chapter.id,
++        position: 1,
++        status: "DRAFT",
++        freePreview: true,
++        estimatedMinutes: 5,
++      },
++      update: {},
++    }),
++  );
++  for (const [index, block] of pulpLesson.blocks.entries())
++    await run((db) =>
++      db.lessonBlock.upsert({
++        where: {
++          lessonId_position: { lessonId: lesson.id, position: index + 1 },
++        },
++        create: {
++          lessonId: lesson.id,
++          position: index + 1,
++          kind: "STUDY_CARD",
++          text: JSON.stringify(block),
++          mediaUrl:
++            index === 0
++              ? "/lessons/pulp-zones.webp"
++              : "/lessons/odontoblasts.svg",
++          sourceUrl: "https://app.dentigoapp.com/fa/lesson/744",
++        },
++        update: {},
++      }),
++    );
++  for (const [index, item] of pulpLesson.questions.entries()) {
++    const q = await run((db) =>
++      db.question.upsert({
++        where: {
++          lessonId_position: { lessonId: lesson.id, position: index + 1 },
++        },
++        create: {
++          lessonId: lesson.id,
++          position: index + 1,
++          kind: item.kind,
++          prompt: item.prompt,
++          explanation: item.explanation,
++        },
++        update: {},
++      }),
++    );
++    for (const [position, text] of item.options.entries())
++      await run((db) =>
++        db.answerOption.upsert({
++          where: {
++            questionId_position: { questionId: q.id, position: position + 1 },
++          },
++          create: {
++            questionId: q.id,
++            position: position + 1,
++            text,
++            isCorrect: position === item.correct,
++          },
++          update: {},
++        }),
++      );
++  }
++  await run((db) =>
++    db.lesson.update({
++      where: { id: lesson.id },
++      data: { status: "PUBLISHED" },
++    }),
++  );
++  return lesson.id;
++}
+diff --git a/prisma/migrations/202611040001_letter_questions/migration.sql b/prisma/migrations/202611040001_letter_questions/migration.sql
+new file mode 100644
+index 0000000..e70f95b
+--- /dev/null
++++ b/prisma/migrations/202611040001_letter_questions/migration.sql
+@@ -0,0 +1,2 @@
++ALTER TYPE "QuestionKind" ADD VALUE IF NOT EXISTS 'LETTER_ORDER';
++ALTER TABLE "AttemptAnswer" ADD COLUMN IF NOT EXISTS "submittedText" TEXT;
+diff --git a/prisma/schema.prisma b/prisma/schema.prisma
+index 8cae986..7c49389 100644
+--- a/prisma/schema.prisma
++++ b/prisma/schema.prisma
+@@ -28,6 +28,7 @@ enum ContentStatus {
+ enum QuestionKind {
+   SINGLE_CHOICE
+   TRUE_FALSE
++  LETTER_ORDER
+ }
+ 
+ enum ProductKind {
+@@ -292,6 +293,7 @@ model Attempt {
+ model AttemptAnswer {
+   id         String       @id @default(cuid())
+   correct    Boolean
++  submittedText String?
+   answeredAt DateTime     @default(now())
+   attemptId  String
+   attempt    Attempt      @relation("AttemptAnswer_attempt", fields: [attemptId], references: [id], onDelete: Cascade)
+diff --git a/public/lessons/odontoblasts.svg b/public/lessons/odontoblasts.svg
+new file mode 100644
+index 0000000..e0ce368
+--- /dev/null
++++ b/public/lessons/odontoblasts.svg
+@@ -0,0 +1,34 @@
++<svg xmlns="http://www.w3.org/2000/svg" viewBox="-35 0 930 510" role="img" aria-labelledby="title" color="#38245b" font-family="Arial,sans-serif">
++<title id="title">Odontoblastenschicht, Zellkontakte und Differenzierung von Stammzellen</title>
++<rect x="120" y="20" width="620" height="52" fill="#C9A227" fill-opacity=".3" stroke="currentColor" stroke-width="2"/>
++<rect x="120" y="72" width="620" height="26" fill="#C9A227" fill-opacity=".14" stroke="currentColor"/>
++<text x="430" y="52" font-size="17" text-anchor="middle">Dentin</text><text x="430" y="90" font-size="13" text-anchor="middle">Prädentin</text>
++<g stroke="currentColor" opacity=".5"><path d="M200 20v78 M285 20v78 M370 20v78 M455 20v78 M540 20v78 M625 20v78"/></g>
++<g fill="#B5679C" fill-opacity=".34" stroke="currentColor" stroke-width="2.2"><rect x="243" y="98" width="84" height="104" rx="9"/><rect x="343" y="98" width="84" height="104" rx="9"/><rect x="443" y="98" width="84" height="104" rx="9"/></g>
++<g fill="#B5679C" fill-opacity=".62" stroke="currentColor"><circle cx="285" cy="168" r="16"/><circle cx="385" cy="168" r="16"/><circle cx="485" cy="168" r="16"/></g>
++<path d="M285 98V34 M385 98V34 M485 98V34" stroke="currentColor" stroke-width="2.6"/>
++<path d="M330 104h10 M430 104h10" stroke="#E08A3C" stroke-width="4.5" stroke-linecap="round"/>
++<path d="M435 104L640 118" stroke="currentColor"/>
++<g font-size="13"><text x="648" y="115">Tight Junctions</text><text x="648" y="136">Permeabilitätsbarriere</text><text x="648" y="153">Präparation kann sie stören</text></g>
++<path d="M330 150h10 M330 176h10 M430 150h10 M430 176h10" stroke="#4A7FB5" stroke-width="4.5" stroke-linecap="round"/>
++<path d="M240 163L128 150" stroke="currentColor"/>
++<g text-anchor="end" font-size="12"><text x="120" y="147">Gap Junctions</text><text x="120" y="168">Signalübertragung</text><text x="120" y="185">Koordinierte Sekretion</text></g>
++<text x="385" y="222" font-size="14" text-anchor="middle">Odontoblastenschicht: postmitotisch, keine Zellteilung</text>
++<rect x="120" y="236" width="620" height="34" fill="#4A7FB5" fill-opacity=".1" stroke="currentColor" stroke-dasharray="5 4"/>
++<text x="430" y="258" font-size="14" text-anchor="middle">Zellarme Zone: Raschkow-Plexus</text>
++<rect x="120" y="270" width="620" height="96" fill="#B5679C" fill-opacity=".13" stroke="currentColor"/>
++<g fill="#B5679C" fill-opacity=".55" stroke="currentColor"><circle cx="165" cy="300" r="7"/><circle cx="205" cy="330" r="7"/><circle cx="250" cy="298" r="7"/><circle cx="600" cy="302" r="7"/><circle cx="650" cy="332" r="7"/><circle cx="700" cy="300" r="7"/><circle cx="695" cy="345" r="7"/><circle cx="160" cy="345" r="7"/></g>
++<text x="430" y="358" font-size="14" text-anchor="middle">Zellreiche Zone: Stammzellreservoir</text>
++<circle cx="385" cy="308" r="15" fill="#3F9E6B" fill-opacity=".55" stroke="currentColor"/>
++<text x="385" y="313" font-size="12" text-anchor="middle">Mesenchymale Stammzelle</text>
++<defs><marker id="ar" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10Z" fill="#3F9E6B"/></marker></defs>
++<path d="M385 326V398" stroke="#3F9E6B" stroke-width="3" marker-end="url(#ar)"/>
++<text x="402" y="390" font-size="13">Differenzierung</text>
++<rect x="270" y="400" width="230" height="40" rx="8" fill="#3F9E6B" fill-opacity=".22" stroke="currentColor"/>
++<text x="385" y="425" font-size="13" text-anchor="middle">Odontoblastenähnliche Zelle</text>
++<path d="M500 420H600" stroke="#3F9E6B" stroke-width="3" marker-end="url(#ar)"/>
++<rect x="606" y="400" width="150" height="40" rx="8" fill="#C9A227" fill-opacity=".28" stroke="currentColor"/>
++<text x="681" y="418" font-size="13" text-anchor="middle">Reparaturdentin</text><text x="681" y="434" font-size="10" text-anchor="middle">unregelmäßig, tubulusarm</text>
++<g font-size="12"><text x="120" y="412">Abgestorbener</text><text x="120" y="430">Odontoblast: Ersatz,</text><text x="120" y="448">aber keine Teilung</text></g>
++<path d="M120 470H740" stroke="currentColor" opacity=".3"/><text x="430" y="490" font-size="12" text-anchor="middle">Ersatz durch Differenzierung, nicht durch Teilung – kein gleichwertiges ursprüngliches Dentin.</text>
++</svg>
+diff --git a/public/lessons/pulp-zones.webp b/public/lessons/pulp-zones.webp
+new file mode 100644
+index 0000000000000000000000000000000000000000..4c32a0114c6220281d2f0975adf084645d514671
+GIT binary patch
+literal 17524
+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
+PaHQ$$n7)yN2J-*_+nr>y
+
+literal 0
+HcmV?d00001
+
+diff --git a/src/app/api/trpc/[trpc]/route.ts b/src/app/api/trpc/[trpc]/route.ts
+index d37341f..e427371 100644
+--- a/src/app/api/trpc/[trpc]/route.ts
++++ b/src/app/api/trpc/[trpc]/route.ts
+@@ -1,12 +1,16 @@
++import { isTrustedMutation } from "@/server/security/request-origin";
+ import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
+ import { appRouter } from "@/server/routers";
+ import { createContext } from "@/server/trpc";
+ function handler(req: Request) {
+-  if (req.method === "POST") {
+-    const origin = req.headers.get("origin");
+-    const expected = new URL(process.env.AUTH_URL ?? req.url).origin;
+-    if (!origin || origin !== expected)
+-      return new Response("Forbidden", { status: 403 });
++  if (req.method === "POST" && !isTrustedMutation(req)) {
++    console.warn(
++      "[tRPC] Mutation rejected: untrusted or missing Origin. Check APP_URL/AUTH_URL.",
++    );
++    return new Response("Forbidden", {
++      status: 403,
++      headers: { "cache-control": "private, no-store" },
++    });
+   }
+   return fetchRequestHandler({
+     endpoint: "/api/trpc",
+diff --git a/src/app/globals.css b/src/app/globals.css
+index 2f6dc64..afc6079 100644
+--- a/src/app/globals.css
++++ b/src/app/globals.css
+@@ -1502,3 +1502,16 @@ details p {
+     animation: none;
+   }
+ }
++
++.study-card h2 { font-size: 1.4rem; line-height: 1.5; margin-bottom: 1rem; }
++.study-card .lesson-text { white-space: pre-line; margin-bottom: 1rem; }
++.study-image { width: 100%; max-width: 480px; height: auto; display: block; margin: 1.5rem auto; border-radius: 12px; }
++.study-diagram { list-style: none; padding: 0; display: grid; gap: 8px; }
++.study-diagram li { padding: 14px; border: 1px solid #ddd2f1; border-radius: 12px; background: #f5f0fc; text-align: center; }
++.letter-slots, .letter-bank { display: flex; flex-wrap: wrap; gap: 8px; padding: 14px 0; }
++.letter-slots { min-height: 64px; border-bottom: 2px solid #cbb7ee; margin-bottom: 12px; }
++.letter-bank button, .letter-slots button { min-width: 42px; min-height: 46px; border: 1px solid #d5c9e8; border-bottom-width: 3px; border-radius: 10px; background: #fff; color: #56319a; font: inherit; font-weight: 700; cursor: pointer; }
++.letter-bank button:disabled { opacity: .35; cursor: default; }
++.letter-slots strong { letter-spacing: .14em; overflow-wrap: anywhere; }
++.answers-binary { grid-template-columns: 1fr 1fr; }
++.lesson-actions { position: sticky; bottom: 78px; z-index: 2; background: #faf8ff; padding: 12px 0; }
+diff --git a/src/features/learning/components/lesson-page.tsx b/src/features/learning/components/lesson-page.tsx
+index e79db27..1e3473c 100644
+--- a/src/features/learning/components/lesson-page.tsx
++++ b/src/features/learning/components/lesson-page.tsx
+@@ -29,11 +29,12 @@ export function LessonPage({ id }: { id: string }) {
+         })),
+       }}
+       onStart={() => start.mutateAsync({ lessonId: id })}
+-      onAnswer={async (attemptId, questionId, optionId) => {
++      onAnswer={async (attemptId, questionId, optionId, submittedText) => {
+         const response = await answer.mutateAsync({
+           attemptId,
+           questionId,
+           optionId,
++          submittedText,
+         });
+         void cache.invalidateQueries({ queryKey: api.profile.me.queryKey() });
+         return response;
+diff --git a/src/features/learning/components/lesson-player.tsx b/src/features/learning/components/lesson-player.tsx
+index 9eaf428..fc5439b 100644
+--- a/src/features/learning/components/lesson-player.tsx
++++ b/src/features/learning/components/lesson-player.tsx
+@@ -6,7 +6,10 @@ import { Button } from "@/components/ui/button";
+ import { Card } from "@/components/ui/card";
+ import { Progress } from "@/components/ui/progress";
+ import { ErrorNotice } from "@/components/ui/feedback";
++import { LetterAnswer } from "./letter-answer";
++import { StudyCard } from "./study-card";
+ type AnswerFeedback = {
++  submittedText?: string | null;
+   optionId: string;
+   correct: boolean;
+   explanation: string;
+@@ -18,10 +21,18 @@ export type LessonSession = {
+ export type LessonContent = {
+   id: string;
+   title: string;
+-  blocks: { id: string; text: string; sourceUrl?: string | null }[];
++  blocks: {
++    id: string;
++    text: string;
++    kind?: string;
++    mediaUrl?: string | null;
++    sourceUrl?: string | null;
++  }[];
+   questions: {
+     id: string;
+     prompt: string;
++    kind?: string;
++    letters?: string[];
+     hint?: string | null;
+     options: { id: string; text: string }[];
+   }[];
+@@ -41,7 +52,13 @@ export function LessonPlayer({
+     attemptId: string,
+     questionId: string,
+     optionId: string,
+-  ) => Promise<{ optionId?: string; correct: boolean; explanation: string }>;
++    submittedText?: string,
++  ) => Promise<{
++    optionId?: string;
++    correct: boolean;
++    explanation: string;
++    submittedText?: string | null;
++  }>;
+   onFinish: (id: string) => Promise<{ score: number; xp: number }>;
+   onBookmark: () => Promise<unknown>;
+   demo?: boolean;
+@@ -53,6 +70,7 @@ export function LessonPlayer({
+ }) {
+   const [step, setStep] = useState(0),
+     [attempt, setAttempt] = useState<string>(),
++    [word, setWord] = useState(""),
+     [selected, setSelected] = useState<string>(),
+     [answers, setAnswers] = useState<Record<string, AnswerFeedback>>({}),
+     [result, setResult] = useState<{ score: number; xp: number }>(),
+@@ -103,6 +121,7 @@ export function LessonPlayer({
+       }
+       setStep(step + 1);
+       setSelected(undefined);
++      setWord("");
+       setHint(false);
+     });
+   }
+@@ -148,7 +167,11 @@ export function LessonPlayer({
+         {block ? (
+           <>
+             <span className="eyebrow">WISSEN ENTDECKEN</span>
+-            <p className="lesson-text">{block.text}</p>
++            <StudyCard
++              text={block.text}
++              kind={block.kind}
++              mediaUrl={block.mediaUrl}
++            />
+             {block.sourceUrl && (
+               <a
+                 className="text-link"
+@@ -164,20 +187,34 @@ export function LessonPlayer({
+           <>
+             <span className="eyebrow">DEIN WISSENSCHECK</span>
+             <h2>{question.prompt}</h2>
+-            <div className="answers">
+-              {question.options.map((o, i) => (
+-                <button
+-                  key={o.id}
+-                  disabled={!!feedback || busy}
+-                  aria-pressed={chosen === o.id}
+-                  className={`answer ${chosen === o.id ? "chosen" : ""} ${feedback && chosen === o.id ? (feedback.correct ? "answer-correct" : "answer-incorrect") : ""}`}
+-                  onClick={() => setSelected(o.id)}
+-                >
+-                  <span aria-hidden="true">{String.fromCharCode(65 + i)}</span>
+-                  {o.text}
+-                </button>
+-              ))}
+-            </div>
++            {question.kind === "LETTER_ORDER" ? (
++              <LetterAnswer
++                key={question.id}
++                letters={question.letters ?? []}
++                disabled={!!feedback || busy}
++                savedText={feedback?.submittedText}
++                onChange={setWord}
++              />
++            ) : (
++              <div
++                className={`answers ${question.kind === "TRUE_FALSE" ? "answers-binary" : ""}`}
++              >
++                {question.options.map((o, i) => (
++                  <button
++                    key={o.id}
++                    disabled={!!feedback || busy}
++                    aria-pressed={chosen === o.id}
++                    className={`answer ${chosen === o.id ? "chosen" : ""} ${feedback && chosen === o.id ? (feedback.correct ? "answer-correct" : "answer-incorrect") : ""}`}
++                    onClick={() => setSelected(o.id)}
++                  >
++                    <span aria-hidden="true">
++                      {String.fromCharCode(65 + i)}
++                    </span>
++                    {o.text}
++                  </button>
++                ))}
++              </div>
++            )}
+             {question.hint && (
+               <>
+                 <Button variant="ghost" onClick={() => setHint(!hint)}>
+@@ -215,17 +252,25 @@ export function LessonPlayer({
+         )}
+         {question && !feedback ? (
+           <Button
+-            disabled={!selected || busy}
++            disabled={
++              busy ||
++              (question.kind === "LETTER_ORDER"
++                ? !word || Array.from(word).length !== question.letters?.length
++                : !selected)
++            }
+             loading={busy}
+             onClick={() =>
+               act(async () => {
+                 const id = await ensureAttempt();
+-                const response = await onAnswer(id, question.id, selected!);
++                const response =
++                  question.kind === "LETTER_ORDER"
++                    ? await onAnswer(id, question.id, "", word)
++                    : await onAnswer(id, question.id, selected!);
+                 setAnswers((current) => ({
+                   ...current,
+                   [question.id]: {
+                     ...response,
+-                    optionId: response.optionId ?? selected!,
++                    optionId: response.optionId ?? selected ?? "",
+                   },
+                 }));
+               })
+diff --git a/src/features/learning/components/letter-answer.tsx b/src/features/learning/components/letter-answer.tsx
+new file mode 100644
+index 0000000..620b11a
+--- /dev/null
++++ b/src/features/learning/components/letter-answer.tsx
+@@ -0,0 +1,70 @@
++"use client";
++import { useState } from "react";
++import { Button } from "@/components/ui/button";
++export function LetterAnswer({
++  letters,
++  disabled,
++  savedText,
++  onChange,
++}: {
++  letters: string[];
++  disabled: boolean;
++  savedText?: string | null;
++  onChange: (value: string) => void;
++}) {
++  const [chosen, setChosen] = useState<number[]>([]);
++  function update(next: number[]) {
++    setChosen(next);
++    onChange(next.map((i) => letters[i]).join(""));
++  }
++  return (
++    <div className="letter-question">
++      <p className="muted">
++        Tippe die Buchstaben in der richtigen Reihenfolge an.
++      </p>
++      <div
++        className="letter-slots"
++        aria-label="Deine Antwort"
++        aria-live="polite"
++      >
++        {savedText ? (
++          <strong>{savedText}</strong>
++        ) : chosen.length ? (
++          chosen.map((index, position) => (
++            <button
++              type="button"
++              disabled={disabled}
++              key={index}
++              aria-label={`${letters[index]} entfernen, Stelle ${position + 1}`}
++              onClick={() => update(chosen.filter((_, i) => i !== position))}
++            >
++              {letters[index]}
++            </button>
++          ))
++        ) : (
++          <span>Dein Wort …</span>
++        )}
++      </div>
++      <div className="letter-bank">
++        {letters.map((letter, index) => (
++          <button
++            type="button"
++            key={index}
++            disabled={disabled || chosen.includes(index)}
++            aria-label={`Buchstabe ${letter}, ${index + 1}`}
++            onClick={() => update([...chosen, index])}
++          >
++            {letter}
++          </button>
++        ))}
++      </div>
++      <Button
++        variant="ghost"
++        disabled={disabled || !chosen.length}
++        onClick={() => update([])}
++      >
++        Zurücksetzen
++      </Button>
++    </div>
++  );
++}
+diff --git a/src/features/learning/components/study-card.tsx b/src/features/learning/components/study-card.tsx
+new file mode 100644
+index 0000000..6fa40e8
+--- /dev/null
++++ b/src/features/learning/components/study-card.tsx
+@@ -0,0 +1,47 @@
++import { z } from "zod";
++const schema = z.object({
++  title: z.string(),
++  paragraphs: z.array(z.string()),
++  caption: z.string().optional(),
++  diagram: z.array(z.string()).optional(),
++});
++export function StudyCard({
++  text,
++  kind,
++  mediaUrl,
++}: {
++  text: string;
++  kind?: string;
++  mediaUrl?: string | null;
++}) {
++  if (kind !== "STUDY_CARD") return <p className="lesson-text">{text}</p>;
++  let parsed;
++  try {
++    parsed = schema.safeParse(JSON.parse(text));
++  } catch {
++    return <p className="lesson-text">{text}</p>;
++  }
++  if (!parsed.success) return <p className="lesson-text">{text}</p>;
++  const card = parsed.data;
++  return (
++    <article className="study-card">
++      <h2>{card.title}</h2>
++      {card.paragraphs.map((paragraph, i) => (
++        <p className="lesson-text" key={i}>
++          {paragraph}
++        </p>
++      ))}
++      {mediaUrl && /^\/(?!\/)/.test(mediaUrl) && (
++        <img src={mediaUrl} alt={card.title} className="study-image" />
++      )}
++      {card.diagram && !mediaUrl && (
++        <ol className="study-diagram" aria-label="Schematische Darstellung">
++          {card.diagram.map((label, i) => (
++            <li key={i}>{label}</li>
++          ))}
++        </ol>
++      )}
++      {card.caption && <p className="muted small">{card.caption}</p>}
++    </article>
++  );
++}
+diff --git a/src/generated/panel-schema.json b/src/generated/panel-schema.json
+index c12e413..5825814 100644
+--- a/src/generated/panel-schema.json
++++ b/src/generated/panel-schema.json
+@@ -68,6 +68,10 @@
+         {
+           "name": "TRUE_FALSE",
+           "dbName": null
++        },
++        {
++          "name": "LETTER_ORDER",
++          "dbName": null
+         }
+       ],
+       "dbName": null
+@@ -3166,6 +3170,20 @@
+           "isGenerated": false,
+           "isUpdatedAt": false
+         },
++        {
++          "name": "submittedText",
++          "kind": "scalar",
++          "isList": false,
++          "isRequired": false,
++          "isUnique": false,
++          "isId": false,
++          "isReadOnly": false,
++          "hasDefaultValue": false,
++          "type": "String",
++          "nativeType": null,
++          "isGenerated": false,
++          "isUpdatedAt": false
++        },
+         {
+           "name": "answeredAt",
+           "kind": "scalar",
+diff --git a/src/server/local-db.ts b/src/server/local-db.ts
+index 60ff834..8be0289 100644
+--- a/src/server/local-db.ts
++++ b/src/server/local-db.ts
+@@ -22,6 +22,7 @@ export async function createLocalDatabase() {
+         "utf8",
+       ),
+     );
++  await engine.exec(await readFile(join(process.cwd(), "prisma/migrations/202611040001_letter_questions/migration.sql"), "utf8"));
+   const client = new PrismaClient({ adapter: new PrismaPGlite(engine) });
+   await seedDatabase(client);
+   return client;
+diff --git a/src/server/routers/learning.ts b/src/server/routers/learning.ts
+index bf08587..eded9c9 100644
+--- a/src/server/routers/learning.ts
++++ b/src/server/routers/learning.ts
+@@ -76,7 +76,7 @@ export const learningRouter = router({
+     .input(z.object({ id: z.string() }))
+     .query(async ({ ctx, input }) => {
+       await requireLesson(ctx.db, ctx.userId, input.id);
+-      return ctx.db.lesson.findUniqueOrThrow({
++      const lesson = await ctx.db.lesson.findUniqueOrThrow({
+         where: { id: input.id },
+         select: {
+           id: true,
+@@ -91,12 +91,30 @@ export const learningRouter = router({
+               hint: true,
+               options: {
+                 orderBy: { position: "asc" },
+-                select: { id: true, text: true },
++                select: { id: true, text: true, isCorrect: true },
+               },
+             },
+           },
+         },
+       });
++      return {
++        ...lesson,
++        questions: lesson.questions.map((q) =>
++          q.kind === "LETTER_ORDER"
++            ? {
++                ...q,
++                options: [],
++                letters: Array.from(
++                  q.options.find((o) => o.isCorrect)?.text ?? "",
++                ).sort((a, b) => a.localeCompare(b, "de")),
++              }
++            : {
++                ...q,
++                options: q.options.map(({ id, text }) => ({ id, text })),
++                letters: undefined,
++              },
++        ),
++      };
+     }),
+   start: protectedProcedure
+     .input(z.object({ lessonId: z.string() }))
+@@ -106,7 +124,8 @@ export const learningRouter = router({
+       z.object({
+         attemptId: z.string(),
+         questionId: z.string(),
+-        optionId: z.string(),
++        optionId: z.string().default(""),
++        submittedText: z.string().min(1).max(200).optional(),
+       }),
+     )
+     .mutation(({ ctx, input }) =>
+@@ -115,6 +134,7 @@ export const learningRouter = router({
+         input.attemptId,
+         input.questionId,
+         input.optionId,
++        input.submittedText,
+       ),
+     ),
+   finish: protectedProcedure
+diff --git a/src/server/security/request-origin.ts b/src/server/security/request-origin.ts
+new file mode 100644
+index 0000000..e1d23f3
+--- /dev/null
++++ b/src/server/security/request-origin.ts
+@@ -0,0 +1,45 @@
++type Environment = Record<string, string | undefined>;
++function originOf(value: string | undefined): string | undefined {
++  if (!value) return;
++  try {
++    const url = new URL(value);
++    if (
++      !["https:", "http:"].includes(url.protocol) ||
++      url.username ||
++      url.password
++    )
++      return;
++    return url.origin;
++  } catch {
++    return;
++  }
++}
++/** Exact allowlist only. Never trust client-supplied forwarding headers or *.vercel.app. */
++export function isTrustedMutation(
++  req: Request,
++  env: Environment = process.env,
++): boolean {
++  const origin = req.headers.get("origin");
++  if (!origin || originOf(origin) !== origin) return false;
++  const allowed = new Set<string>();
++  for (const value of [env.AUTH_URL, env.APP_URL]) {
++    const parsed = originOf(value);
++    if (parsed) allowed.add(parsed);
++  }
++  if (env.VERCEL === "1") {
++    for (const host of [
++      env.VERCEL_URL,
++      env.VERCEL_PROJECT_PRODUCTION_URL,
++      env.VERCEL_BRANCH_URL,
++    ]) {
++      if (host && /^[a-zA-Z0-9.-]+$/.test(host)) {
++        const parsed = originOf(`https://${host}`);
++        if (parsed) allowed.add(parsed);
++      }
++    }
++  } else if (env.NODE_ENV !== "production") {
++    const parsed = originOf(req.url);
++    if (parsed) allowed.add(parsed);
++  }
++  return allowed.has(origin);
++}
+diff --git a/src/server/services/learning.ts b/src/server/services/learning.ts
+index 8e04758..dc1e38d 100644
+--- a/src/server/services/learning.ts
++++ b/src/server/services/learning.ts
+@@ -30,6 +30,7 @@ export async function startLesson(userId: string, lessonId: string) {
+           questionId: true,
+           optionId: true,
+           correct: true,
++          submittedText: true,
+           question: { select: { explanation: true } },
+         },
+       });
+@@ -93,6 +94,7 @@ export async function submitAnswer(
+   attemptId: string,
+   questionId: string,
+   optionId: string,
++  submittedText?: string,
+ ) {
+   return atomic(async (tx) => {
+     const attempt = await tx.attempt.findFirst({
+@@ -123,8 +125,29 @@ export async function submitAnswer(
+     const previous = answered.find((a) => a.questionId === questionId);
+     const question = questions.find((q) => q.id === questionId);
+     if (!question) throw new TRPCError({ code: "BAD_REQUEST" });
++    const letterAnswer = question.kind === "LETTER_ORDER";
++    const normalizedText = submittedText
++      ?.normalize("NFC")
++      .trim()
++      .toLocaleUpperCase("de-DE");
++    if (letterAnswer && !normalizedText)
++      throw new TRPCError({
++        code: "BAD_REQUEST",
++        message: "Bitte setze die Buchstaben zusammen.",
++      });
++    if (!letterAnswer && submittedText !== undefined)
++      throw new TRPCError({ code: "BAD_REQUEST" });
++    const expectedWord = letterAnswer
++      ? question.options.find((o) => o.isCorrect)
++      : undefined;
++    if (letterAnswer && !expectedWord)
++      throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
++    if (letterAnswer) optionId = expectedWord!.id;
+     if (previous) {
+-      if (previous.optionId !== optionId)
++      if (
++        previous.optionId !== optionId ||
++        (letterAnswer && previous.submittedText !== normalizedText)
++      )
+         throw new TRPCError({
+           code: "CONFLICT",
+           message:
+@@ -133,6 +156,7 @@ export async function submitAnswer(
+       return {
+         optionId: previous.optionId,
+         correct: previous.correct,
++        submittedText: previous.submittedText,
+         explanation: question.explanation,
+       };
+     }
+@@ -146,6 +170,10 @@ export async function submitAnswer(
+       });
+     const option = question.options.find((o) => o.id === optionId);
+     if (!option) throw new TRPCError({ code: "BAD_REQUEST" });
++    const correct = letterAnswer
++      ? normalizedText ===
++        expectedWord!.text.normalize("NFC").trim().toLocaleUpperCase("de-DE")
++      : option.isCorrect;
+     const state = await tx.gameState.findUniqueOrThrow({ where: { userId } });
+     if (state.hearts < 1)
+       throw new TRPCError({
+@@ -153,9 +181,15 @@ export async function submitAnswer(
+         message: "Keine Herzen verfügbar.",
+       });
+     await tx.attemptAnswer.create({
+-      data: { attemptId, questionId, optionId, correct: option.isCorrect },
++      data: {
++        attemptId,
++        questionId,
++        optionId,
++        correct,
++        submittedText: letterAnswer ? normalizedText : null,
++      },
+     });
+-    if (!option.isCorrect) {
++    if (!correct) {
+       await tx.gameState.update({
+         where: { userId },
+         data: { hearts: { decrement: 1 } },
+@@ -168,7 +202,8 @@ export async function submitAnswer(
+     }
+     return {
+       optionId: option.id,
+-      correct: option.isCorrect,
++      correct,
++      submittedText: letterAnswer ? normalizedText : null,
+       explanation: question.explanation,
+     };
+   });
+diff --git a/src/trpc/provider.tsx b/src/trpc/provider.tsx
+index d849a65..47f077b 100644
+--- a/src/trpc/provider.tsx
++++ b/src/trpc/provider.tsx
+@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+ import { createTRPCClient, httpBatchLink } from "@trpc/client";
+ import { createTRPCContext } from "@trpc/tanstack-react-query";
+ import superjson from "superjson";
++import { rpcFetch } from "./rpc-fetch";
+ import type { AppRouter } from "@/server/routers";
+ export const { TRPCProvider, useTRPC } = createTRPCContext<AppRouter>();
+ export function Providers({ children }: { children: React.ReactNode }) {
+@@ -19,8 +20,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
+         httpBatchLink({
+           url: "/api/trpc",
+           transformer: superjson,
+-          fetch: (url, options) =>
+-            fetch(url, { ...options, cache: "no-store" }),
++          fetch: rpcFetch,
+         }),
+       ],
+     }),
+diff --git a/src/trpc/rpc-fetch.ts b/src/trpc/rpc-fetch.ts
+new file mode 100644
+index 0000000..29a7d64
+--- /dev/null
++++ b/src/trpc/rpc-fetch.ts
+@@ -0,0 +1,17 @@
++/** Preserve tRPC JSON errors, but give an actionable message for proxy/CSRF HTML or text errors. */
++export const rpcFetch: typeof fetch = async (input, init) => {
++  const response = await fetch(input, { ...init, cache: "no-store" });
++  const isJson = response.headers
++    .get("content-type")
++    ?.includes("application/json");
++  if (!response.ok && !isJson) {
++    if (response.status === 403)
++      throw new Error(
++        "Die Anfrage wurde blockiert. Bitte lade die Seite neu. Falls der Fehler bleibt, muss die Website-Adresse in der Serverkonfiguration geprüft werden.",
++      );
++    throw new Error(
++      `Der Server ist gerade nicht erreichbar (HTTP ${response.status}). Bitte versuche es erneut.`,
++    );
++  }
++  return response;
++};
+diff --git a/tests/first-lesson.integration.test.ts b/tests/first-lesson.integration.test.ts
+new file mode 100644
+index 0000000..a348da4
+--- /dev/null
++++ b/tests/first-lesson.integration.test.ts
+@@ -0,0 +1,125 @@
++import { beforeAll, afterAll, it, expect, vi } from "vitest";
++import { readFileSync } from "node:fs";
++import { PGlite } from "@electric-sql/pglite";
++import { PrismaPGlite } from "pglite-prisma-adapter";
++import { PrismaClient } from "@prisma/client";
++import { importFirstLesson } from "../prisma/import-first-lesson";
++const state = vi.hoisted(() => ({ db: null as unknown as PrismaClient }));
++vi.mock("@/server/db", () => ({
++  get db() {
++    return state.db;
++  },
++}));
++vi.mock("@/server/auth", () => ({ auth: async () => null }));
++import {
++  startLesson,
++  submitAnswer,
++  finishLesson,
++} from "@/server/services/learning";
++import { appRouter } from "@/server/routers";
++let pg: PGlite, lessonId: string;
++beforeAll(async () => {
++  pg = new PGlite();
++  await pg.exec(
++    readFileSync(
++      "prisma/migrations/202610280001_initial/migration.sql",
++      "utf8",
++    ),
++  );
++  await pg.exec(
++    readFileSync(
++      "prisma/migrations/202611040001_letter_questions/migration.sql",
++      "utf8",
++    ),
++  );
++  state.db = new PrismaClient({ adapter: new PrismaPGlite(pg) });
++  lessonId = await importFirstLesson((fn) => fn(state.db));
++});
++afterAll(async () => {
++  await state.db.$disconnect();
++  await pg.close();
++});
++it("imports exactly two pages and five questions without duplicating or resetting content", async () => {
++  await importFirstLesson((fn) => fn(state.db));
++  expect(await state.db.lessonBlock.count({ where: { lessonId } })).toBe(2);
++  expect(await state.db.question.count({ where: { lessonId } })).toBe(5);
++  expect(await state.db.lesson.count()).toBe(1);
++});
++it("grades letter answers on the server, preserves a wrong answer and completes once", async () => {
++  const user = await state.db.user.create({
++    data: { email: "letters@example.com" },
++  });
++  const attempt = await startLesson(user.id, lessonId);
++  const questions = await state.db.question.findMany({
++    where: { lessonId },
++    orderBy: { position: "asc" },
++    include: { options: true },
++  });
++  for (const q of questions.slice(0, 4))
++    expect(
++      (
++        await submitAnswer(
++          user.id,
++          attempt.id,
++          q.id,
++          q.options.find((o) => o.isCorrect)!.id,
++        )
++      ).correct,
++    ).toBe(true);
++  const q = questions[4];
++  // Even knowing the correct option id cannot forge correctness for a letter question.
++  const wrong = await submitAnswer(
++    user.id,
++    attempt.id,
++    q.id,
++    q.options[0].id,
++    "FALSCH",
++  );
++  expect(wrong.correct).toBe(false);
++  expect(
++    (await submitAnswer(user.id, attempt.id, q.id, "", "FALSCH")).correct,
++  ).toBe(false);
++  await expect(
++    submitAnswer(user.id, attempt.id, q.id, "", "ZELLREICHE"),
++  ).rejects.toMatchObject({ code: "CONFLICT" });
++  const resumed = await startLesson(user.id, lessonId);
++  expect(
++    resumed.answers.find((a) => a.questionId === q.id)?.submittedText,
++  ).toBe("FALSCH");
++  const result = await finishLesson(user.id, attempt.id);
++  expect(result.score).toBe(80);
++  const again = await finishLesson(user.id, attempt.id);
++  expect(again.score).toBe(80);
++});
++it("accepts a correctly ordered word and never exposes the solution order in the lesson API", async () => {
++  const user = await state.db.user.create({
++    data: { email: "correct-letters@example.com" },
++  });
++  const caller = appRouter.createCaller({
++    db: state.db,
++    session: { user: { id: user.id } },
++    userId: user.id,
++  } as never);
++  const publicLesson = await caller.learning.lesson({ id: lessonId });
++  const letterQuestion = publicLesson.questions[4];
++  expect(letterQuestion.options).toEqual([]);
++  expect(letterQuestion.letters?.join("")).not.toBe("ZELLREICHE");
++  expect(JSON.stringify(publicLesson)).not.toContain("isCorrect");
++  const attempt = await startLesson(user.id, lessonId);
++  const qs = await state.db.question.findMany({
++    where: { lessonId },
++    orderBy: { position: "asc" },
++    include: { options: true },
++  });
++  for (const q of qs.slice(0, 4))
++    await submitAnswer(
++      user.id,
++      attempt.id,
++      q.id,
++      q.options.find((o) => o.isCorrect)!.id,
++    );
++  expect(
++    (await submitAnswer(user.id, attempt.id, qs[4].id, "", "zellreiche"))
++      .correct,
++  ).toBe(true);
++});
+diff --git a/tests/learning-regressions.integration.test.ts b/tests/learning-regressions.integration.test.ts
+index d5fb8ce..e459555 100644
+--- a/tests/learning-regressions.integration.test.ts
++++ b/tests/learning-regressions.integration.test.ts
+@@ -22,7 +22,7 @@ beforeAll(async () => {
+     readFileSync(
+       "prisma/migrations/202610280001_initial/migration.sql",
+       "utf8",
+-    ),
++    ) + readFileSync("prisma/migrations/202611040001_letter_questions/migration.sql", "utf8"),
+   );
+   state.db = new PrismaClient({ adapter: new PrismaPGlite(pg) });
+   await seedDatabase(state.db);
+diff --git a/tests/learning.integration.test.ts b/tests/learning.integration.test.ts
+index 7feeaaa..9f676e1 100644
+--- a/tests/learning.integration.test.ts
++++ b/tests/learning.integration.test.ts
+@@ -28,7 +28,7 @@ beforeAll(async () => {
+     readFileSync(
+       "prisma/migrations/202610280001_initial/migration.sql",
+       "utf8",
+-    ),
++    ) + readFileSync("prisma/migrations/202611040001_letter_questions/migration.sql", "utf8"),
+   );
+   state.db = new PrismaClient({ adapter: new PrismaPGlite(pg) });
+   const user = await state.db.user.create({
+diff --git a/tests/letter-answer.test.tsx b/tests/letter-answer.test.tsx
+new file mode 100644
+index 0000000..c46d3e6
+--- /dev/null
++++ b/tests/letter-answer.test.tsx
+@@ -0,0 +1,25 @@
++// @vitest-environment jsdom
++import React from "react";
++import { it, expect, vi, afterEach } from "vitest";
++import { render, screen, fireEvent, cleanup } from "@testing-library/react";
++import { LetterAnswer } from "@/features/learning/components/letter-answer";
++afterEach(cleanup);
++it("handles duplicate letters by index and allows removing and resetting choices", () => {
++  const change = vi.fn();
++  render(
++    <LetterAnswer
++      letters={["L", "L", "E"]}
++      disabled={false}
++      onChange={change}
++    />,
++  );
++  fireEvent.click(screen.getByRole("button", { name: "Buchstabe L, 1" }));
++  fireEvent.click(screen.getByRole("button", { name: "Buchstabe L, 2" }));
++  expect(change).toHaveBeenLastCalledWith("LL");
++  fireEvent.click(
++    screen.getByRole("button", { name: "L entfernen, Stelle 1" }),
++  );
++  expect(change).toHaveBeenLastCalledWith("L");
++  fireEvent.click(screen.getByRole("button", { name: "Zurücksetzen" }));
++  expect(change).toHaveBeenLastCalledWith("");
++});
+diff --git a/tests/panel.integration.test.ts b/tests/panel.integration.test.ts
+index fb1874d..1dd11c4 100644
+--- a/tests/panel.integration.test.ts
++++ b/tests/panel.integration.test.ts
+@@ -33,7 +33,7 @@ beforeAll(async () => {
+     readFileSync(
+       "prisma/migrations/202610280001_initial/migration.sql",
+       "utf8",
+-    ),
++    ) + readFileSync("prisma/migrations/202611040001_letter_questions/migration.sql", "utf8"),
+   );
+   state.db = new PrismaClient({ adapter: new PrismaPGlite(engine) });
+ });
+diff --git a/tests/request-origin.test.ts b/tests/request-origin.test.ts
+new file mode 100644
+index 0000000..80d345c
+--- /dev/null
++++ b/tests/request-origin.test.ts
+@@ -0,0 +1,55 @@
++import { expect, it } from "vitest";
++import { isTrustedMutation } from "../src/server/security/request-origin";
++const env = {
++  NODE_ENV: "production",
++  VERCEL: "1",
++  AUTH_URL: "http://localhost:3000",
++  VERCEL_PROJECT_PRODUCTION_URL: "dentora-deutsch.vercel.app",
++  VERCEL_URL: "dentora-build.vercel.app",
++};
++const request = (origin?: string) =>
++  new Request("https://internal/api/trpc/learning.start", {
++    method: "POST",
++    headers: origin ? { origin } : {},
++  });
++it("accepts this production and preview deployment even with a stale AUTH_URL", () => {
++  expect(
++    isTrustedMutation(request("https://dentora-deutsch.vercel.app"), env),
++  ).toBe(true);
++  expect(
++    isTrustedMutation(request("https://dentora-build.vercel.app"), env),
++  ).toBe(true);
++});
++it("rejects other deployments, malformed, null and absent origins", () => {
++  for (const origin of [
++    undefined,
++    "null",
++    "https://attacker.vercel.app",
++    "https://dentora-deutsch.vercel.app.evil.test",
++    "https://dentora-deutsch.vercel.app/path",
++  ])
++    expect(isTrustedMutation(request(origin), env)).toBe(false);
++});
++it("does not trust forwarded headers or request host in production", () => {
++  const req = new Request("https://evil.test/api/trpc", {
++    method: "POST",
++    headers: { origin: "https://evil.test", "x-forwarded-host": "evil.test" },
++  });
++  expect(isTrustedMutation(req, env)).toBe(false);
++});
++it("supports explicit custom domain and localhost development", () => {
++  expect(
++    isTrustedMutation(request("https://learn.example.com"), {
++      NODE_ENV: "production",
++      APP_URL: "https://learn.example.com",
++    }),
++  ).toBe(true);
++  expect(
++    isTrustedMutation(
++      new Request("http://localhost:3000/api/trpc", {
++        headers: { origin: "http://localhost:3000" },
++      }),
++      { NODE_ENV: "development" },
++    ),
++  ).toBe(true);
++});
+diff --git a/tests/rpc-fetch.test.ts b/tests/rpc-fetch.test.ts
+new file mode 100644
+index 0000000..269deb2
+--- /dev/null
++++ b/tests/rpc-fetch.test.ts
+@@ -0,0 +1,25 @@
++import { afterEach, it, vi, expect } from "vitest";
++import { rpcFetch } from "../src/trpc/rpc-fetch";
++afterEach(() => vi.unstubAllGlobals());
++it("turns a plain 403 into a readable German error", async () => {
++  vi.stubGlobal(
++    "fetch",
++    vi.fn(async () => new Response("Forbidden", { status: 403 })),
++  );
++  await expect(rpcFetch("/api/trpc")).rejects.toThrow(
++    "Die Anfrage wurde blockiert",
++  );
++});
++it("preserves structured tRPC errors and disables caching", async () => {
++  const response = Response.json(
++    { error: { message: "Kurszugang erforderlich" } },
++    { status: 403 },
++  );
++  const fetcher = vi.fn(async () => response);
++  vi.stubGlobal("fetch", fetcher);
++  expect(await rpcFetch("/api/trpc", { method: "POST" })).toBe(response);
++  expect(fetcher).toHaveBeenCalledWith("/api/trpc", {
++    method: "POST",
++    cache: "no-store",
++  });
++});
+diff --git a/tests/seed-idempotence.integration.test.ts b/tests/seed-idempotence.integration.test.ts
+index d91d6b2..01b9558 100644
+--- a/tests/seed-idempotence.integration.test.ts
++++ b/tests/seed-idempotence.integration.test.ts
+@@ -8,7 +8,7 @@ import { createSeedRunner } from "../prisma/seed-runner";
+ 
+ it("recovers a lost acknowledgement after commit without duplicate seed rows", async () => {
+   const engine = new PGlite();
+-  await engine.exec(readFileSync("prisma/migrations/202610280001_initial/migration.sql", "utf8"));
++  await engine.exec(readFileSync("prisma/migrations/202610280001_initial/migration.sql", "utf8") + readFileSync("prisma/migrations/202611040001_letter_questions/migration.sql", "utf8"));
+   const db = new PrismaClient({ adapter: new PrismaPGlite(engine) });
+   // Keep the shared test database open while simulating replacement transport clients.
+   const runner = createSeedRunner(() => new Proxy(db, {
+diff --git a/tests/sessions.integration.test.ts b/tests/sessions.integration.test.ts
+index f0d009a..931c64f 100644
+--- a/tests/sessions.integration.test.ts
++++ b/tests/sessions.integration.test.ts
+@@ -43,7 +43,7 @@ beforeAll(async () => {
+     readFileSync(
+       "prisma/migrations/202610280001_initial/migration.sql",
+       "utf8",
+-    ),
++    ) + readFileSync("prisma/migrations/202611040001_letter_questions/migration.sql", "utf8"),
+   );
+   state.db = new PrismaClient({ adapter: new PrismaPGlite(pg) });
+   process.env.AUTH_SECRET =

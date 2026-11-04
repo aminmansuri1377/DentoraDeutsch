@@ -29,11 +29,12 @@ export function LessonPage({ id }: { id: string }) {
         })),
       }}
       onStart={() => start.mutateAsync({ lessonId: id })}
-      onAnswer={async (attemptId, questionId, optionId) => {
+      onAnswer={async (attemptId, questionId, optionId, submittedText) => {
         const response = await answer.mutateAsync({
           attemptId,
           questionId,
           optionId,
+          submittedText,
         });
         void cache.invalidateQueries({ queryKey: api.profile.me.queryKey() });
         return response;

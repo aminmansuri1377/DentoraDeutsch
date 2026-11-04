@@ -30,6 +30,7 @@ export async function startLesson(userId: string, lessonId: string) {
           questionId: true,
           optionId: true,
           correct: true,
+          submittedText: true,
           question: { select: { explanation: true } },
         },
       });
@@ -93,6 +94,7 @@ export async function submitAnswer(
   attemptId: string,
   questionId: string,
   optionId: string,
+  submittedText?: string,
 ) {
   return atomic(async (tx) => {
     const attempt = await tx.attempt.findFirst({
@@ -123,8 +125,29 @@ export async function submitAnswer(
     const previous = answered.find((a) => a.questionId === questionId);
     const question = questions.find((q) => q.id === questionId);
     if (!question) throw new TRPCError({ code: "BAD_REQUEST" });
+    const letterAnswer = question.kind === "LETTER_ORDER";
+    const normalizedText = submittedText
+      ?.normalize("NFC")
+      .trim()
+      .toLocaleUpperCase("de-DE");
+    if (letterAnswer && !normalizedText)
+      throw new TRPCError({
+        code: "BAD_REQUEST",
+        message: "Bitte setze die Buchstaben zusammen.",
+      });
+    if (!letterAnswer && submittedText !== undefined)
+      throw new TRPCError({ code: "BAD_REQUEST" });
+    const expectedWord = letterAnswer
+      ? question.options.find((o) => o.isCorrect)
+      : undefined;
+    if (letterAnswer && !expectedWord)
+      throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+    if (letterAnswer) optionId = expectedWord!.id;
     if (previous) {
-      if (previous.optionId !== optionId)
+      if (
+        previous.optionId !== optionId ||
+        (letterAnswer && previous.submittedText !== normalizedText)
+      )
         throw new TRPCError({
           code: "CONFLICT",
           message:
@@ -133,6 +156,7 @@ export async function submitAnswer(
       return {
         optionId: previous.optionId,
         correct: previous.correct,
+        submittedText: previous.submittedText,
         explanation: question.explanation,
       };
     }
@@ -146,6 +170,10 @@ export async function submitAnswer(
       });
     const option = question.options.find((o) => o.id === optionId);
     if (!option) throw new TRPCError({ code: "BAD_REQUEST" });
+    const correct = letterAnswer
+      ? normalizedText ===
+        expectedWord!.text.normalize("NFC").trim().toLocaleUpperCase("de-DE")
+      : option.isCorrect;
     const state = await tx.gameState.findUniqueOrThrow({ where: { userId } });
     if (state.hearts < 1)
       throw new TRPCError({
@@ -153,9 +181,15 @@ export async function submitAnswer(
         message: "Keine Herzen verfügbar.",
       });
     await tx.attemptAnswer.create({
-      data: { attemptId, questionId, optionId, correct: option.isCorrect },
+      data: {
+        attemptId,
+        questionId,
+        optionId,
+        correct,
+        submittedText: letterAnswer ? normalizedText : null,
+      },
     });
-    if (!option.isCorrect) {
+    if (!correct) {
       await tx.gameState.update({
         where: { userId },
         data: { hearts: { decrement: 1 } },
@@ -168,7 +202,8 @@ export async function submitAnswer(
     }
     return {
       optionId: option.id,
-      correct: option.isCorrect,
+      correct,
+      submittedText: letterAnswer ? normalizedText : null,
       explanation: question.explanation,
     };
   });

@@ -51,7 +51,12 @@ export const learningRouter = router({
           orderBy: { position: "asc" },
           include: {
             lessons: {
-              where: { status: "PUBLISHED" },
+              where: {
+                OR: [
+                  { status: "PUBLISHED" },
+                  { status: "DRAFT", slug: { startsWith: "dentigo-path-" } },
+                ],
+              },
               orderBy: { position: "asc" },
               select: {
                 id: true,
@@ -59,6 +64,7 @@ export const learningRouter = router({
                 slug: true,
                 position: true,
                 estimatedMinutes: true,
+                status: true,
                 freePreview: true,
                 progress: {
                   where: { userId: ctx.userId },
@@ -69,14 +75,18 @@ export const learningRouter = router({
           },
         },
       },
-      orderBy: { specialty: { position: "asc" } },
+      orderBy: [
+        { specialty: { position: "asc" } },
+        { createdAt: "asc" },
+        { id: "asc" },
+      ],
     }),
   ),
   lesson: protectedProcedure
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
       await requireLesson(ctx.db, ctx.userId, input.id);
-      return ctx.db.lesson.findUniqueOrThrow({
+      const lesson = await ctx.db.lesson.findUniqueOrThrow({
         where: { id: input.id },
         select: {
           id: true,
@@ -91,12 +101,30 @@ export const learningRouter = router({
               hint: true,
               options: {
                 orderBy: { position: "asc" },
-                select: { id: true, text: true },
+                select: { id: true, text: true, isCorrect: true },
               },
             },
           },
         },
       });
+      return {
+        ...lesson,
+        questions: lesson.questions.map((q) =>
+          q.kind === "LETTER_ORDER"
+            ? {
+                ...q,
+                options: [],
+                letters: Array.from(
+                  q.options.find((o) => o.isCorrect)?.text ?? "",
+                ).sort((a, b) => a.localeCompare(b, "de")),
+              }
+            : {
+                ...q,
+                options: q.options.map(({ id, text }) => ({ id, text })),
+                letters: undefined,
+              },
+        ),
+      };
     }),
   start: protectedProcedure
     .input(z.object({ lessonId: z.string() }))
@@ -106,7 +134,8 @@ export const learningRouter = router({
       z.object({
         attemptId: z.string(),
         questionId: z.string(),
-        optionId: z.string(),
+        optionId: z.string().default(""),
+        submittedText: z.string().min(1).max(200).optional(),
       }),
     )
     .mutation(({ ctx, input }) =>
@@ -115,6 +144,7 @@ export const learningRouter = router({
         input.attemptId,
         input.questionId,
         input.optionId,
+        input.submittedText,
       ),
     ),
   finish: protectedProcedure

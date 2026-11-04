@@ -1,0 +1,422 @@
+diff --git a/src/app/api/media/route.ts b/src/app/api/media/route.ts
+index 4a140a3..448b9ba 100644
+--- a/src/app/api/media/route.ts
++++ b/src/app/api/media/route.ts
+@@ -1,4 +1,5 @@
+ import { randomUUID } from "node:crypto";
++import { mediaObjectKey } from "@/server/media/object-key";
+ import { auth } from "@/server/auth";
+ import { db } from "@/server/db";
+ import { limit } from "@/server/rate-limit";
+@@ -56,7 +57,7 @@ export async function POST(request: Request) {
+     );
+   }
+   const id = randomUUID(),
+-    objectKey = `${encodeURIComponent(userId)}/${id}.webp`;
++    objectKey = mediaObjectKey(purpose as "avatar" | "post", userId, id);
+   try {
+     await uploadObject(objectKey, bytes);
+   } catch (e) {
+diff --git a/src/features/community/comments.tsx b/src/features/community/comments.tsx
+index 3fa34f8..97f3765 100644
+--- a/src/features/community/comments.tsx
++++ b/src/features/community/comments.tsx
+@@ -1,14 +1,18 @@
+ "use client";
+-import Link from "next/link";
+ import { useState } from "react";
+ import { useMutation, useInfiniteQuery } from "@tanstack/react-query";
+ import { useTRPC } from "@/trpc/provider";
+-import { Avatar } from "@/components/ui/avatar";
+ import { Loading, ErrorNotice } from "@/components/ui/feedback";
+-import { profileHref } from "./profile-link";
++import { CommentItem } from "./components/comment-item";
+ import { useSocialRefresh } from "./use-social-refresh";
+ import styles from "./community.module.css";
+-export function Comments({ postId }: { postId: string }) {
++export function Comments({
++  postId,
++  viewerId,
++}: {
++  postId: string;
++  viewerId: string;
++}) {
+   const api = useTRPC(),
+     refresh = useSocialRefresh(),
+     [body, setBody] = useState("");
+@@ -29,9 +33,10 @@ export function Comments({ postId }: { postId: string }) {
+   return (
+     <section className={styles.comments} aria-label="Kommentare">
+       <form
++        className={styles.commentForm}
+         onSubmit={(e) => {
+           e.preventDefault();
+-          create.mutate({ postId, body });
++          if (body.trim() && !create.isPending) create.mutate({ postId, body });
+         }}
+       >
+         <label htmlFor={`comment-${postId}`}>Dein Kommentar</label>
+@@ -42,12 +47,15 @@ export function Comments({ postId }: { postId: string }) {
+           onChange={(e) => setBody(e.target.value)}
+           rows={2}
+         />
+-        <button
+-          className="button primary compact"
+-          disabled={!body.trim() || create.isPending}
+-        >
+-          {create.isPending ? "Wird gesendet …" : "Kommentieren"}
+-        </button>
++        <div className={styles.commentFormActions}>
++          <button
++            type="submit"
++            className="button primary compact"
++            disabled={!body.trim() || create.isPending}
++          >
++            {create.isPending ? "Wird gesendet …" : "Kommentieren"}
++          </button>
++        </div>
+         {create.error && <p role="alert">{create.error.message}</p>}
+       </form>
+       {comments.isPending ? (
+@@ -58,18 +66,7 @@ export function Comments({ postId }: { postId: string }) {
+         comments.data.pages
+           .flatMap((p) => p.items)
+           .map((c) => (
+-            <article className={styles.comment} key={c.id}>
+-              <Link href={profileHref(c.author)}>
+-                <Avatar image={c.author.image} name={c.author.name} size={32} />
+-              </Link>
+-              <div>
+-                <Link href={profileHref(c.author)}>
+-                  <strong>{c.author.name || "Dentora Mitglied"}</strong>
+-                </Link>
+-                <p>{c.body}</p>
+-                <time>{c.createdAt.toLocaleDateString("de-DE")}</time>
+-              </div>
+-            </article>
++            <CommentItem key={c.id} comment={c} viewerId={viewerId} />
+           ))
+       )}
+       {comments.hasNextPage && (
+diff --git a/src/features/community/community.module.css b/src/features/community/community.module.css
+index 1f99da4..6f89957 100644
+--- a/src/features/community/community.module.css
++++ b/src/features/community/community.module.css
+@@ -354,3 +354,56 @@
+   opacity: 0.5;
+   cursor: wait;
+ }
++
++.commentForm {
++  display: flex;
++  flex-direction: column;
++  gap: 14px;
++  min-width: 0;
++}
++.commentForm label {
++  margin: 0;
++}
++.commentForm textarea {
++  display: block;
++  box-sizing: border-box;
++  min-height: 112px;
++  width: 100%;
++  margin: 0;
++  resize: vertical;
++}
++.commentFormActions {
++  display: flex;
++  justify-content: flex-end;
++  padding-top: 4px;
++}
++.commentFormActions button {
++  position: static;
++  min-height: 44px;
++  margin: 0;
++}
++.commentContent {
++  flex: 1;
++  min-width: 0;
++}
++.commentHeading {
++  display: flex;
++  align-items: center;
++  justify-content: space-between;
++  gap: 10px;
++}
++.commentHeading a {
++  min-width: 0;
++  overflow-wrap: anywhere;
++}
++.commentDelete {
++  flex-shrink: 0;
++  display: grid;
++  place-items: center;
++  width: 44px;
++  height: 44px;
++  border: 0;
++  border-radius: 10px;
++  background: #fff0f4;
++  color: #b03955;
++}
+diff --git a/src/features/community/components/comment-item.tsx b/src/features/community/components/comment-item.tsx
+new file mode 100644
+index 0000000..c676faa
+--- /dev/null
++++ b/src/features/community/components/comment-item.tsx
+@@ -0,0 +1,92 @@
++"use client";
++import Link from "next/link";
++import { useState } from "react";
++import { useMutation } from "@tanstack/react-query";
++import type { inferRouterOutputs } from "@trpc/server";
++import type { AppRouter } from "@/server/routers";
++import { Trash2 } from "lucide-react";
++import { Avatar } from "@/components/ui/avatar";
++import { useTRPC } from "@/trpc/provider";
++import { profileHref } from "../profile-link";
++import { useSocialRefresh } from "../use-social-refresh";
++import styles from "../community.module.css";
++
++type Comment =
++  inferRouterOutputs<AppRouter>["social"]["comments"]["items"][number];
++export function CommentItem({
++  comment,
++  viewerId,
++}: {
++  comment: Comment;
++  viewerId: string;
++}) {
++  const [confirm, setConfirm] = useState(false);
++  const api = useTRPC(),
++    refresh = useSocialRefresh();
++  const remove = useMutation(
++    api.social.removeComment.mutationOptions({
++      onSuccess: async () => {
++        setConfirm(false);
++        await refresh();
++      },
++    }),
++  );
++  return (
++    <article className={styles.comment}>
++      <Link href={profileHref(comment.author)}>
++        <Avatar
++          image={comment.author.image}
++          name={comment.author.name}
++          size={32}
++        />
++      </Link>
++      <div className={styles.commentContent}>
++        <div className={styles.commentHeading}>
++          <Link href={profileHref(comment.author)}>
++            <strong>{comment.author.name || "Dentora Mitglied"}</strong>
++          </Link>
++          {viewerId === comment.authorId && (
++            <button
++              type="button"
++              className={styles.commentDelete}
++              aria-label="Kommentar löschen"
++              aria-expanded={confirm}
++              disabled={remove.isPending}
++              onClick={() => setConfirm(!confirm)}
++            >
++              <Trash2 size={17} />
++            </button>
++          )}
++        </div>
++        <p>{comment.body}</p>
++        <time dateTime={comment.createdAt.toISOString()}>
++          {comment.createdAt.toLocaleDateString("de-DE")}
++        </time>
++        {confirm && (
++          <div className={styles.deleteConfirm}>
++            <p>Deinen Kommentar löschen?</p>
++            <button
++              type="button"
++              disabled={remove.isPending}
++              onClick={() => remove.mutate({ id: comment.id })}
++            >
++              {remove.isPending ? "Wird gelöscht …" : "Löschen"}
++            </button>
++            <button
++              type="button"
++              disabled={remove.isPending}
++              onClick={() => setConfirm(false)}
++            >
++              Abbrechen
++            </button>
++          </div>
++        )}
++        {remove.error && (
++          <p className={styles.error} role="alert">
++            {remove.error.message}
++          </p>
++        )}
++      </div>
++    </article>
++  );
++}
+diff --git a/src/features/community/components/post-card.tsx b/src/features/community/components/post-card.tsx
+index 11686e8..9b2d759 100644
+--- a/src/features/community/components/post-card.tsx
++++ b/src/features/community/components/post-card.tsx
+@@ -141,7 +141,7 @@ export function PostCard({
+           {error.message}
+         </p>
+       )}
+-      {comments && <Comments postId={post.id} />}
++      {comments && <Comments postId={post.id} viewerId={viewerId} />}
+     </article>
+   );
+ }
+diff --git a/src/server/media/object-key.ts b/src/server/media/object-key.ts
+new file mode 100644
+index 0000000..1d17fe4
+--- /dev/null
++++ b/src/server/media/object-key.ts
+@@ -0,0 +1,9 @@
++/** New uploads are grouped by purpose; existing Media.objectKey values stay valid. */
++export function mediaObjectKey(
++  purpose: "avatar" | "post",
++  userId: string,
++  id: string,
++) {
++  const folder = purpose === "avatar" ? "avatars" : "posts";
++  return `${folder}/${encodeURIComponent(userId)}/${id}.webp`;
++}
+diff --git a/src/server/routers/social.ts b/src/server/routers/social.ts
+index f2c8d4a..afac6bf 100644
+--- a/src/server/routers/social.ts
++++ b/src/server/routers/social.ts
+@@ -206,6 +206,20 @@ export const socialRouter = router({
+         data: { ...input, authorId: ctx.userId },
+       });
+     }),
++  removeComment: protectedProcedure
++    .input(z.object({ id: z.string().min(1) }))
++    .mutation(async ({ ctx, input }) => {
++      const result = await ctx.db.comment.updateMany({
++        where: { id: input.id, authorId: ctx.userId, deletedAt: null },
++        data: { deletedAt: new Date() },
++      });
++      if (!result.count)
++        throw new TRPCError({
++          code: "NOT_FOUND",
++          message: "Kommentar nicht gefunden.",
++        });
++      return { removed: true };
++    }),
+   follow: protectedProcedure
+     .input(z.object({ userId: z.string(), follow: z.boolean() }))
+     .mutation(async ({ ctx, input }) => {
+diff --git a/tests/media-routes.test.ts b/tests/media-routes.test.ts
+index b4447bf..1bf6697 100644
+--- a/tests/media-routes.test.ts
++++ b/tests/media-routes.test.ts
+@@ -37,13 +37,17 @@ beforeEach(() => {
+   state.update.mockResolvedValue({});
+   vi.stubEnv("AUTH_URL", "https://dentora.test");
+ });
+-function request(bytes: Uint8Array, origin = "https://dentora.test") {
++function request(
++  bytes: Uint8Array,
++  origin = "https://dentora.test",
++  purpose = "avatar",
++) {
+   const form = new FormData();
+   form.append(
+     "file",
+     new File([new Uint8Array(bytes)], "test.jpg", { type: "image/jpeg" }),
+   );
+-  form.append("purpose", "avatar");
++  form.append("purpose", purpose);
+   return new Request("https://dentora.test/api/media", {
+     method: "POST",
+     headers: { origin },
+@@ -66,6 +70,9 @@ it("saves only sanitized images and updates the authenticated user", async () =>
+     .toBuffer();
+   const response = await POST(request(input));
+   expect(response.status).toBe(201);
++  expect(vi.mocked(uploadObject).mock.calls[0][0]).toMatch(
++    /^avatars\/owner\/[^/]+\.webp$/,
++  );
+   const result = await response.json();
+   expect(result.url).toBe("/api/media/" + result.id);
+   expect(state.update).toHaveBeenCalledWith({
+@@ -108,3 +115,40 @@ it("does not serve another user’s unattached image or a deleted post image", a
+   state.viewer = undefined;
+   expect((await GET(req, args)).status).toBe(401);
+ });
++
++it("stores post images in their own folder without changing the avatar", async () => {
++  const input = await sharp({
++    create: { width: 32, height: 32, channels: 3, background: "blue" },
++  })
++    .png()
++    .toBuffer();
++  const response = await POST(request(input, "https://dentora.test", "post"));
++  expect(response.status).toBe(201);
++  expect(vi.mocked(uploadObject).mock.calls[0][0]).toMatch(
++    /^posts\/owner\/[^/]+\.webp$/,
++  );
++  expect(state.create).toHaveBeenCalledWith(
++    expect.objectContaining({
++      data: expect.objectContaining({
++        status: "READY",
++        objectKey: expect.stringMatching(/^posts\//),
++      }),
++    }),
++  );
++  expect(state.update).not.toHaveBeenCalled();
++});
++it("continues serving existing images from their original object key", async () => {
++  state.media = {
++    ownerId: "owner",
++    status: "AVATAR",
++    objectKey: "owner/old-avatar.webp",
++    post: null,
++    owner: { image: "/api/media/old" },
++  };
++  const response = await GET(
++    new Request("https://dentora.test/api/media/old"),
++    { params: Promise.resolve({ id: "old" }) },
++  );
++  expect(response.status).toBe(200);
++  expect(downloadObject).toHaveBeenCalledWith("owner/old-avatar.webp");
++});
+diff --git a/tests/social.integration.test.ts b/tests/social.integration.test.ts
+index 2979d4a..ae5923d 100644
+--- a/tests/social.integration.test.ts
++++ b/tests/social.integration.test.ts
+@@ -83,9 +83,27 @@ it("creates, likes, saves, comments and deletes with current counts and author p
+   expect(
+     (await viewer.social.comments({ postId: post.id })).items[0].body,
+   ).toBe("Danke!");
+-  await state.db.comment.update({
+-    where: { id: comment.id },
+-    data: { deletedAt: new Date() },
++  // Owning the post does not grant permission to delete someone else's comment.
++  await expect(
++    owner.social.removeComment({ id: comment.id }),
++  ).rejects.toMatchObject({
++    code: "NOT_FOUND",
++  });
++  expect(
++    (await viewer.social.comments({ postId: post.id })).items,
++  ).toHaveLength(1);
++  await viewer.social.removeComment({ id: comment.id });
++  expect(
++    (await viewer.social.comments({ postId: post.id })).items,
++  ).toHaveLength(0);
++  expect(
++    (await state.db.comment.findUnique({ where: { id: comment.id } }))
++      ?.deletedAt,
++  ).toBeInstanceOf(Date);
++  await expect(
++    viewer.social.removeComment({ id: comment.id }),
++  ).rejects.toMatchObject({
++    code: "NOT_FOUND",
+   });
+   expect((await viewer.social.feed({})).items[0]._count.comments).toBe(0);
+   await expect(viewer.social.remove({ id: post.id })).rejects.toMatchObject({

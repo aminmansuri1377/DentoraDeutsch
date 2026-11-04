@@ -15,16 +15,22 @@ export function LearningPage() {
       courses={courses.data.map((c) => ({
         id: c.id,
         title: c.title,
+        specialtyId: c.specialty.id,
+        specialtyTitle: c.slug.startsWith("dentigo-path-")
+          ? c.title
+          : c.specialty.title,
         description: c.description,
         access: c.access,
         chapters: c.chapters.map((ch) => ({
           id: ch.id,
           title: ch.title,
+          guide: ch.guide,
           lessons: ch.lessons.map((l) => ({
             id: l.id,
             title: l.title,
             minutes: l.estimatedMinutes,
             done: l.progress.length > 0,
+            available: l.status === "PUBLISHED",
           })),
         })),
       }))}

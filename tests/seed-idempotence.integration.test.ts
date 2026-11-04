@@ -8,7 +8,7 @@ import { createSeedRunner } from "../prisma/seed-runner";
 
 it("recovers a lost acknowledgement after commit without duplicate seed rows", async () => {
   const engine = new PGlite();
-  await engine.exec(readFileSync("prisma/migrations/202610280001_initial/migration.sql", "utf8"));
+  await engine.exec(readFileSync("prisma/migrations/202610280001_initial/migration.sql", "utf8") + readFileSync("prisma/migrations/202611040001_letter_questions/migration.sql", "utf8"));
   const db = new PrismaClient({ adapter: new PrismaPGlite(engine) });
   // Keep the shared test database open while simulating replacement transport clients.
   const runner = createSeedRunner(() => new Proxy(db, {
