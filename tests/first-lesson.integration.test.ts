@@ -185,3 +185,72 @@ it("imports all 17 categories without duplicating content or making empty lesson
     requireLesson(state.db, user.id, next.id),
   ).resolves.toHaveProperty("lesson.id", next.id);
 });
+
+it("disables daily and heart limits explicitly in production, then restores them", async () => {
+  const user = await state.db.user.create({
+    data: { email: "unlimited-test@example.com" },
+  });
+  const now = new Date();
+  await state.db.gameState.create({
+    data: { userId: user.id, hearts: 0, heartsUpdatedAt: now },
+  });
+  await state.db.attempt.createMany({
+    data: Array.from({ length: 4 }, () => ({
+      userId: user.id,
+      lessonId,
+      lessonVersion: 1,
+      startedAt: new Date(now.getTime() - 120000),
+      expiresAt: new Date(now.getTime() - 60000),
+    })),
+  });
+  vi.stubEnv("NODE_ENV", "production");
+  vi.stubEnv("DISABLE_LEARNING_LIMITS", "false");
+  try {
+    await expect(startLesson(user.id, lessonId)).rejects.toMatchObject({
+      code: "FORBIDDEN",
+      message: expect.stringContaining("Tageslimit"),
+    });
+    vi.stubEnv("DISABLE_LEARNING_LIMITS", "true");
+    const attempt = await startLesson(user.id, lessonId);
+    const question = await state.db.question.findFirstOrThrow({
+      where: { lessonId, kind: { not: "LETTER_ORDER" } },
+      orderBy: { position: "asc" },
+      include: { options: true },
+    });
+    const wrong = question.options.find((o) => !o.isCorrect)!;
+    vi.stubEnv("DISABLE_LEARNING_LIMITS", "false");
+    await expect(
+      submitAnswer(user.id, attempt.id, question.id, wrong.id),
+    ).rejects.toMatchObject({
+      code: "FORBIDDEN",
+      message: "Keine Herzen verfügbar.",
+    });
+    vi.stubEnv("DISABLE_LEARNING_LIMITS", "true");
+    expect(
+      (await submitAnswer(user.id, attempt.id, question.id, wrong.id)).correct,
+    ).toBe(false);
+    expect(
+      (
+        await state.db.gameState.findUniqueOrThrow({
+          where: { userId: user.id },
+        })
+      ).hearts,
+    ).toBe(0);
+    expect(
+      await state.db.reviewCard.count({
+        where: { userId: user.id, questionId: question.id },
+      }),
+    ).toBe(1);
+    await state.db.attempt.update({
+      where: { id: attempt.id },
+      data: { expiresAt: new Date(0) },
+    });
+    vi.stubEnv("DISABLE_LEARNING_LIMITS", "false");
+    await expect(startLesson(user.id, lessonId)).rejects.toMatchObject({
+      code: "FORBIDDEN",
+      message: expect.stringContaining("Tageslimit"),
+    });
+  } finally {
+    vi.unstubAllEnvs();
+  }
+});

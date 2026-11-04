@@ -9,6 +9,11 @@ import {
   RULES,
   scoreAnswers,
 } from "@/features/gamification/rules";
+// Explicit server-side switch for test deployments, including Vercel.
+// Unset or false preserves production quotas; it never grants course access.
+function learningLimitsDisabled() {
+  return process.env.DISABLE_LEARNING_LIMITS === "true";
+}
 export async function startLesson(userId: string, lessonId: string) {
   return atomic(async (tx) => {
     const { lesson, pro } = await requireLesson(tx, userId, lessonId);
@@ -42,16 +47,18 @@ export async function startLesson(userId: string, lessonId: string) {
         })),
       };
     }
-    const user = await tx.user.findUniqueOrThrow({ where: { id: userId } });
-    const day = dayKey(now, user.timezone);
-    const daily = await tx.attempt.count({
-      where: {
-        userId,
-        startedAt: { gte: new Date(now.getTime() - 24 * 3600000) },
-      },
-    });
+    const limitsDisabled = learningLimitsDisabled();
+    const daily =
+      limitsDisabled || pro
+        ? 0
+        : await tx.attempt.count({
+            where: {
+              userId,
+              startedAt: { gte: new Date(now.getTime() - 24 * 3600000) },
+            },
+          });
     // Rolling 24-hour free allowance deliberately prevents timezone-switch abuse.
-    if (!pro && daily >= RULES.freeDailyLessons)
+    if (!limitsDisabled && !pro && daily >= RULES.freeDailyLessons)
       throw new TRPCError({
         code: "FORBIDDEN",
         message: "Dein Tageslimit ist erreicht. Morgen geht es weiter.",
@@ -68,7 +75,7 @@ export async function startLesson(userId: string, lessonId: string) {
       pro ? RULES.proHearts : RULES.freeHearts,
     );
     await tx.gameState.update({ where: { userId }, data: regenerated });
-    if (regenerated.hearts < 1)
+    if (!limitsDisabled && regenerated.hearts < 1)
       throw new TRPCError({
         code: "FORBIDDEN",
         message: "Du brauchst ein Herz. Es regeneriert sich automatisch.",
@@ -175,7 +182,8 @@ export async function submitAnswer(
         expectedWord!.text.normalize("NFC").trim().toLocaleUpperCase("de-DE")
       : option.isCorrect;
     const state = await tx.gameState.findUniqueOrThrow({ where: { userId } });
-    if (state.hearts < 1)
+    const limitsDisabled = learningLimitsDisabled();
+    if (!limitsDisabled && state.hearts < 1)
       throw new TRPCError({
         code: "FORBIDDEN",
         message: "Keine Herzen verfügbar.",
@@ -190,10 +198,11 @@ export async function submitAnswer(
       },
     });
     if (!correct) {
-      await tx.gameState.update({
-        where: { userId },
-        data: { hearts: { decrement: 1 } },
-      });
+      if (!limitsDisabled)
+        await tx.gameState.update({
+          where: { userId },
+          data: { hearts: { decrement: 1 } },
+        });
       await tx.reviewCard.upsert({
         where: { userId_questionId: { userId, questionId } },
         create: { userId, questionId },

@@ -1,0 +1,180 @@
+diff --git a/docs/LEARNING-TEST-MODE.md b/docs/LEARNING-TEST-MODE.md
+new file mode 100644
+index 0000000..9bd94b3
+--- /dev/null
++++ b/docs/LEARNING-TEST-MODE.md
+@@ -0,0 +1,18 @@
++# حالت تست محدودیت‌های یادگیری
++
++برای غیرفعال‌کردن سهمیه روزانه درس و محدودیت قلب، در فایل واقعی .env و متغیرهای محیطی Vercel تنظیم کنید:
++
++DISABLE_LEARNING_LIMITS=true
++
++در Vercel محیط Production (و در صورت نیاز Preview) را انتخاب و سپس مجدداً Deploy کنید.
++برای اجرای محلی، سرور npm run dev را متوقف و دوباره اجرا کنید.
++
++در این حالت تعداد شروع درس محدود نیست؛ صفر بودن قلب مانع شروع یا پاسخ نیست و پاسخ اشتباه قلب کم نمی‌کند.
++پاسخ اشتباه همچنان اشتباه ثبت می‌شود و به مرورها اضافه می‌شود.
++ورود، دسترسی دوره، ترتیب درس‌ها، انقضای جلسه، کنترل مالکیت و جلوگیری از امتیاز تکراری تغییری نمی‌کنند.
++قلب نمایش‌داده‌شده همچنان مقدار واقعی حساب است؛ امتیاز و پیشرفت تست‌ها ذخیره می‌شود.
++
++برای بازگرداندن محدودیت‌ها، مقدار را false کنید یا متغیر را حذف کنید و دوباره Deploy کنید.
++حالت پیش‌فرض محدودیت‌دار است؛ این تنظیم مستقل از NODE_ENV و ENABLE_DEMO_AUTH عمل می‌کند.
++سابقه تلاش‌ها حذف نمی‌شود؛ پس پس از فعال‌کردن مجدد، تلاش‌های ۲۴ ساعت گذشته در سهمیه حساب می‌شوند.
++نیازی به migration یا seed نیست.
+diff --git a/src/server/services/learning.ts b/src/server/services/learning.ts
+index dc1e38d..e14ad32 100644
+--- a/src/server/services/learning.ts
++++ b/src/server/services/learning.ts
+@@ -9,6 +9,11 @@ import {
+   RULES,
+   scoreAnswers,
+ } from "@/features/gamification/rules";
++// Explicit server-side switch for test deployments, including Vercel.
++// Unset or false preserves production quotas; it never grants course access.
++function learningLimitsDisabled() {
++  return process.env.DISABLE_LEARNING_LIMITS === "true";
++}
+ export async function startLesson(userId: string, lessonId: string) {
+   return atomic(async (tx) => {
+     const { lesson, pro } = await requireLesson(tx, userId, lessonId);
+@@ -42,16 +47,18 @@ export async function startLesson(userId: string, lessonId: string) {
+         })),
+       };
+     }
+-    const user = await tx.user.findUniqueOrThrow({ where: { id: userId } });
+-    const day = dayKey(now, user.timezone);
+-    const daily = await tx.attempt.count({
+-      where: {
+-        userId,
+-        startedAt: { gte: new Date(now.getTime() - 24 * 3600000) },
+-      },
+-    });
++    const limitsDisabled = learningLimitsDisabled();
++    const daily =
++      limitsDisabled || pro
++        ? 0
++        : await tx.attempt.count({
++            where: {
++              userId,
++              startedAt: { gte: new Date(now.getTime() - 24 * 3600000) },
++            },
++          });
+     // Rolling 24-hour free allowance deliberately prevents timezone-switch abuse.
+-    if (!pro && daily >= RULES.freeDailyLessons)
++    if (!limitsDisabled && !pro && daily >= RULES.freeDailyLessons)
+       throw new TRPCError({
+         code: "FORBIDDEN",
+         message: "Dein Tageslimit ist erreicht. Morgen geht es weiter.",
+@@ -68,7 +75,7 @@ export async function startLesson(userId: string, lessonId: string) {
+       pro ? RULES.proHearts : RULES.freeHearts,
+     );
+     await tx.gameState.update({ where: { userId }, data: regenerated });
+-    if (regenerated.hearts < 1)
++    if (!limitsDisabled && regenerated.hearts < 1)
+       throw new TRPCError({
+         code: "FORBIDDEN",
+         message: "Du brauchst ein Herz. Es regeneriert sich automatisch.",
+@@ -175,7 +182,8 @@ export async function submitAnswer(
+         expectedWord!.text.normalize("NFC").trim().toLocaleUpperCase("de-DE")
+       : option.isCorrect;
+     const state = await tx.gameState.findUniqueOrThrow({ where: { userId } });
+-    if (state.hearts < 1)
++    const limitsDisabled = learningLimitsDisabled();
++    if (!limitsDisabled && state.hearts < 1)
+       throw new TRPCError({
+         code: "FORBIDDEN",
+         message: "Keine Herzen verfügbar.",
+@@ -190,10 +198,11 @@ export async function submitAnswer(
+       },
+     });
+     if (!correct) {
+-      await tx.gameState.update({
+-        where: { userId },
+-        data: { hearts: { decrement: 1 } },
+-      });
++      if (!limitsDisabled)
++        await tx.gameState.update({
++          where: { userId },
++          data: { hearts: { decrement: 1 } },
++        });
+       await tx.reviewCard.upsert({
+         where: { userId_questionId: { userId, questionId } },
+         create: { userId, questionId },
+diff --git a/tests/first-lesson.integration.test.ts b/tests/first-lesson.integration.test.ts
+index 147d861..f8bd244 100644
+--- a/tests/first-lesson.integration.test.ts
++++ b/tests/first-lesson.integration.test.ts
+@@ -185,3 +185,72 @@ it("imports all 17 categories without duplicating content or making empty lesson
+     requireLesson(state.db, user.id, next.id),
+   ).resolves.toHaveProperty("lesson.id", next.id);
+ });
++
++it("disables daily and heart limits explicitly in production, then restores them", async () => {
++  const user = await state.db.user.create({
++    data: { email: "unlimited-test@example.com" },
++  });
++  const now = new Date();
++  await state.db.gameState.create({
++    data: { userId: user.id, hearts: 0, heartsUpdatedAt: now },
++  });
++  await state.db.attempt.createMany({
++    data: Array.from({ length: 4 }, () => ({
++      userId: user.id,
++      lessonId,
++      lessonVersion: 1,
++      startedAt: new Date(now.getTime() - 120000),
++      expiresAt: new Date(now.getTime() - 60000),
++    })),
++  });
++  vi.stubEnv("NODE_ENV", "production");
++  vi.stubEnv("DISABLE_LEARNING_LIMITS", "false");
++  try {
++    await expect(startLesson(user.id, lessonId)).rejects.toMatchObject({
++      code: "FORBIDDEN",
++      message: expect.stringContaining("Tageslimit"),
++    });
++    vi.stubEnv("DISABLE_LEARNING_LIMITS", "true");
++    const attempt = await startLesson(user.id, lessonId);
++    const question = await state.db.question.findFirstOrThrow({
++      where: { lessonId, kind: { not: "LETTER_ORDER" } },
++      orderBy: { position: "asc" },
++      include: { options: true },
++    });
++    const wrong = question.options.find((o) => !o.isCorrect)!;
++    vi.stubEnv("DISABLE_LEARNING_LIMITS", "false");
++    await expect(
++      submitAnswer(user.id, attempt.id, question.id, wrong.id),
++    ).rejects.toMatchObject({
++      code: "FORBIDDEN",
++      message: "Keine Herzen verfügbar.",
++    });
++    vi.stubEnv("DISABLE_LEARNING_LIMITS", "true");
++    expect(
++      (await submitAnswer(user.id, attempt.id, question.id, wrong.id)).correct,
++    ).toBe(false);
++    expect(
++      (
++        await state.db.gameState.findUniqueOrThrow({
++          where: { userId: user.id },
++        })
++      ).hearts,
++    ).toBe(0);
++    expect(
++      await state.db.reviewCard.count({
++        where: { userId: user.id, questionId: question.id },
++      }),
++    ).toBe(1);
++    await state.db.attempt.update({
++      where: { id: attempt.id },
++      data: { expiresAt: new Date(0) },
++    });
++    vi.stubEnv("DISABLE_LEARNING_LIMITS", "false");
++    await expect(startLesson(user.id, lessonId)).rejects.toMatchObject({
++      code: "FORBIDDEN",
++      message: expect.stringContaining("Tageslimit"),
++    });
++  } finally {
++    vi.unstubAllEnvs();
++  }
++});
