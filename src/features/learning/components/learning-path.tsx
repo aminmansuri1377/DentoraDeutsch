@@ -68,7 +68,7 @@ export function LearningPath({
                     <div className={styles.companion} aria-hidden="true">
                       <span>Hier geht’s weiter!</span>
                       <Image
-                        src="/mascots/purple-rabbit.png"
+                        src="/mascots/course.png"
                         alt=""
                         width={84}
                         height={98}

@@ -102,7 +102,7 @@ export function PostComposer({
             {create.isPending ? "Wird veröffentlicht …" : "Veröffentlichen"}
           </button>
         </div>
-        <small>JPG, PNG oder WebP · max. 2 MB · {body.length}/5000</small>
+        {/* <small>JPG, PNG oder WebP · max. 2 MB · {body.length}/5000</small> */}
         {pendingFile && upload.isError && (
           <div className={styles.editorActions}>
             <button

@@ -33,7 +33,7 @@ export function AvatarEditor({
           }}
         />
       </label>
-      <small>JPG, PNG, WebP · max. 2 MB</small>
+      {/* <small>JPG, PNG, WebP · max. 2 MB</small> */}
       {upload.error && <p role="alert">{upload.error.message}</p>}
       {upload.isSuccess && <span role="status">Profilbild gespeichert.</span>}
     </div>

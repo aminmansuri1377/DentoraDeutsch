@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { ArrowLeft, Flame, Star } from "lucide-react";
 import { Avatar } from "@/components/ui/avatar";
 import { AvatarEditor } from "./avatar-editor";
@@ -49,12 +50,20 @@ export function ProfileHeader({
           ) : (
             <Avatar image={user.image} name={user.name} size={88} />
           )}
-          <img
+          <Image
+            src="/mascots/pro.png"
+            alt="pro"
+            width={300}
+            height={300}
+            aria-hidden="true"
             className={styles.mascot}
-            src="/mascots/purple-rabbit.png"
+          />
+          {/* <img
+            className={styles.mascot}
+            src="/mascots/pro.png"
             alt=""
             aria-hidden="true"
-          />
+          /> */}
           <h1>{user.name || "Dentora Mitglied"}</h1>
           {user.username && (
             <span className={styles.username}>@{user.username}</span>
