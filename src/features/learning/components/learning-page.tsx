@@ -1,27 +1,49 @@
 "use client";
 import { useQuery } from "@tanstack/react-query";
 import { useTRPC } from "@/trpc/provider";
-import type { LearningCatalog } from "@/server/services/catalog";
 import { LearningDashboard } from "./learning-dashboard";
-import { Loading, ErrorNotice } from "@/components/ui/feedback";
-export function LearningPage({
-  initialCatalog,
-  name,
-}: {
-  initialCatalog?: LearningCatalog;
-  name?: string;
-}) {
+import { Loading } from "@/components/ui/feedback";
+import styles from "./learning-page.module.css";
+
+export function LearningPage() {
   const trpc = useTRPC();
   const courses = useQuery({
     ...trpc.learning.catalog.queryOptions(),
-    initialData: initialCatalog,
+    staleTime: 120_000,
+    refetchOnWindowFocus: false,
+    retry: 0,
+  });
+  // AppShell already subscribes to this key. React Query shares the request.
+  const header = useQuery({
+    ...trpc.profile.header.queryOptions(),
     staleTime: 120_000,
   });
-  if (courses.isPending) return <Loading />;
-  if (courses.error) return <ErrorNotice message={courses.error.message} />;
+
+  if (courses.isPending) {
+    return <Loading label="Deine Lernpfade werden geladen …" />;
+  }
+  if (!courses.data) {
+    return (
+      <section className={styles.error} role="alert">
+        <h2>Lernpfade konnten nicht geladen werden.</h2>
+        <p>
+          Bitte prüfe deine Verbindung und versuche es erneut. Deine Daten
+          bleiben unverändert.
+        </p>
+        <button
+          type="button"
+          className="button primary"
+          disabled={courses.isFetching}
+          onClick={() => void courses.refetch()}
+        >
+          {courses.isFetching ? "Lädt …" : "Erneut versuchen"}
+        </button>
+      </section>
+    );
+  }
   return (
     <LearningDashboard
-      name={name}
+      name={header.data?.name?.split(" ")[0] ?? undefined}
       courses={courses.data.map((c) => ({
         id: c.id,
         title: c.title,

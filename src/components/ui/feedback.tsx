@@ -9,7 +9,7 @@ export function Loading({
 }) {
   return (
     <div
-      className={`loading-state ${compact ? "loading-compact" : "card"}`}
+      className={compact ? "loading-state loading-compact" : "loading-state"}
       role="status"
       aria-live="polite"
       aria-label={label}

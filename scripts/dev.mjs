@@ -4,6 +4,8 @@ import nextEnv from "@next/env";
 const { loadEnvConfig } = nextEnv;
 loadEnvConfig(process.cwd(), true);
 const args = process.argv.slice(2);
+// Next 16 uses Turbopack by default. --webpack remains a safe fallback.
+const webpack = args.includes("--webpack") || process.env.DENTORA_DEV_WEBPACK === "true";
 const port = args.includes("--port")
   ? args[args.indexOf("--port") + 1]
   : (process.env.PORT ?? "3000");
@@ -24,7 +26,7 @@ const child = spawn(
   [
     "node_modules/next/dist/bin/next",
     "dev",
-    "--webpack",
+    ...(webpack ? ["--webpack"] : []),
     "--hostname",
     "0.0.0.0",
     "--port",

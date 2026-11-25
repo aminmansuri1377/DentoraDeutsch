@@ -28,18 +28,18 @@
     "@trpc/tanstack-react-query": "11.19.0",
     "clsx": "^2.1.1",
     "lucide-react": "latest",
-    "next": "16.4.3",
+    "next": "16.4.6",
     "next-auth": "5.0.0-beta.32",
     "nodemailer": "10.1.4",
     "pg": "^8.16.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "server-only": "^0.0.1",
+    "sharp": "0.35.5",
     "stripe": "latest",
     "superjson": "^2.2.0",
     "tailwind-merge": "^3.0.0",
-    "zod": "^4.0.0",
-    "sharp": "0.35.5"
+    "zod": "^4.0.0"
   },
   "devDependencies": {
     "@electric-sql/pglite": "^0.4.3",

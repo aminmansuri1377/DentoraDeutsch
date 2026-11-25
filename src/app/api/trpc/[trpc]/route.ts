@@ -12,6 +12,7 @@ function handler(req: Request) {
       headers: { "cache-control": "private, no-store" },
     });
   }
+  const startedAt = performance.now();
   return fetchRequestHandler({
     endpoint: "/api/trpc",
     req,
@@ -28,6 +29,15 @@ function handler(req: Request) {
         time: new Date().toISOString(),
       });
     },
+  }).then((response) => {
+    if (process.env.DENTORA_PERF_LOG === "true") {
+      console.info("[dentora:perf] api.trpc", {
+        procedures: new URL(req.url).pathname.split("/api/trpc/")[1] ?? "unknown",
+        durationMs: Math.round(performance.now() - startedAt),
+        status: response.status,
+      });
+    }
+    return response;
   });
 }
 export { handler as GET, handler as POST };

@@ -11,7 +11,9 @@ export function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(
     () =>
       new QueryClient({
-        defaultOptions: { queries: { staleTime: 30_000, retry: 1 } },
+        defaultOptions: {
+          queries: { staleTime: 120_000, retry: 1, refetchOnWindowFocus: false },
+        },
       }),
   );
   const [trpcClient] = useState(() =>

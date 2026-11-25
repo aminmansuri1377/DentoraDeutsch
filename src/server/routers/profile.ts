@@ -6,7 +6,10 @@ export const profileRouter = router({
       where: { userId: ctx.userId },
       select: { streak: true, gems: true, hearts: true },
     });
-    return { game: game ?? { streak: 0, gems: 0, hearts: 5 } };
+    return {
+      name: ctx.session?.user?.name ?? null,
+      game: game ?? { streak: 0, gems: 0, hearts: 5 },
+    };
   }),
   me: protectedProcedure.query(async ({ ctx }) => {
     const user = await ctx.db.user.findUniqueOrThrow({

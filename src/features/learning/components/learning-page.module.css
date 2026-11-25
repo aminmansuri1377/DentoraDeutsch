@@ -1,0 +1,18 @@
+/* Local failure state: unlike an App Router error boundary, retry stays in place. */
+.error {
+  width: 100%;
+  max-width: 440px;
+  margin: 24px auto;
+  padding: 24px;
+  display: flex;
+  align-items: flex-start;
+  flex-direction: column;
+  gap: 14px;
+  border-radius: 18px;
+  border: 1px solid #ebdef7;
+  background: #fff;
+  box-shadow: 0 12px 34px #7143c40b;
+}
+.error h2 { font-size: 18px; line-height: 1.45; color: #4b2b70; }
+.error p { font-size: 13px; line-height: 1.7; }
+.error button { min-height: 42px; }

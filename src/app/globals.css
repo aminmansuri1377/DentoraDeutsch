@@ -1424,7 +1424,7 @@ details p {
   gap: 18px;
   color: #80669b;
   font-size: 13px;
-  background: radial-gradient(ellipse at center, #f5efff, white 75%);
+  background: transparent;
 }
 .loading-compact {
   min-height: 90px;

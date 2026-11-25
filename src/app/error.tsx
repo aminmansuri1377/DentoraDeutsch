@@ -1,5 +1,7 @@
 "use client";
-export default function ErrorPage({ reset }: { reset: () => void }) {
+
+/** A hard navigation re-executes failed server components and their DB reads. */
+export default function ErrorPage() {
   return (
     <main className="auth-screen">
       <div className="auth-card">
@@ -8,8 +10,12 @@ export default function ErrorPage({ reset }: { reset: () => void }) {
           Bitte versuche es erneut. Falls der Fehler bleibt, kontaktiere den
           Support.
         </p>
-        <button className="button primary" onClick={reset}>
-          Erneut versuchen
+        <button
+          type="button"
+          className="button primary"
+          onClick={() => window.location.reload()}
+        >
+          Seite neu laden
         </button>
       </div>
     </main>

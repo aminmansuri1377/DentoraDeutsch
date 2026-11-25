@@ -33,6 +33,8 @@ export function databaseConfig(env: Record<string, string | undefined> = process
     ...(ca ? { ssl: { ca, rejectUnauthorized: true } } : {}),
     max: 3,
     connectionTimeoutMillis: 10000,
+    // Fail a stalled read rather than leave the browser waiting indefinitely.
+    query_timeout: 20000,
     idleTimeoutMillis: 30000,
     keepAlive: true,
     keepAliveInitialDelayMillis: 10000,

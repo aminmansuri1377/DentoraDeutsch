@@ -29,7 +29,10 @@ export async function testSession() {
   if (!token?.startsWith("test_")) return null;
   const session = await db.session.findUnique({
     where: { sessionToken: token },
-    include: { user: true },
+    select: {
+      expires: true,
+      user: { select: { id: true, name: true, email: true, image: true } },
+    },
   });
   if (!session || session.expires < new Date()) return null;
   return {
