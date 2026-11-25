@@ -1,0 +1,8 @@
+.loader { position: relative; display: inline-block; aspect-ratio: 1; flex: none; max-width: 100%; isolation: isolate; }
+.rabbit { position: absolute; width: 70%; height: 70%; left: 15%; top: 15%; object-fit: contain; pointer-events: none; }
+.ring { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; transform: rotate(-90deg); }
+.track { fill: none; stroke: #e6d5f3; stroke-width: 5; opacity: .85; }
+.arc { fill: none; stroke: #8b20d4; stroke-width: 6; stroke-linecap: round; stroke-dasharray: 90 665; transform-origin: 50% 50%; animation: spin 2.55s infinite both, breathe 2.55s infinite both; }
+@keyframes spin { 0% { transform: rotate(0); animation-timing-function: cubic-bezier(.45,.02,.7,.25) } 30% { transform: rotate(105deg); animation-timing-function: cubic-bezier(.22,.1,.16,1) } 54% { transform: rotate(245deg); animation-timing-function: cubic-bezier(.5,.04,.74,.3) } 78% { transform: rotate(305deg); animation-timing-function: cubic-bezier(.16,.55,.18,1) } 100% { transform: rotate(360deg) } }
+@keyframes breathe { 0%,100% { stroke-dasharray: 70 685 } 32% { stroke-dasharray: 170 585 } 56% { stroke-dasharray: 105 650 } 80% { stroke-dasharray: 145 610 } }
+@media (prefers-reduced-motion: reduce) { .arc { animation: none; stroke-dasharray: 130 625; } }

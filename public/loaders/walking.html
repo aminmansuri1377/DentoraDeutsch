@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Dentora Rabbit</title>
+<style>
+html,body{width:100%;height:100%;margin:0;padding:0;background:transparent!important;overflow:hidden}
+body{display:grid;place-items:center}
+canvas{display:block;width:min(100vw,177.7777778vh,640px);height:auto;aspect-ratio:16/9;background:transparent!important;border:0;outline:0}
+</style>
+</head>
+<body>
+<canvas id="rabbit" width="640" height="360" role="img" aria-label="Animierter Dentora-Hase"></canvas>
+<script>
+'use strict';
+
+/**
+ * Dentora rabbit loading choreography.
+ *
+ * The image indices refer to the supplied 12-frame Purple Rabbit Loading Loop:
+ *   3, 4, 5 = right-facing walk; 9, 10, 11 = left-facing walk.
+ *   0/1 = foot up/down looking at watch; 7/8 = returning foot up/down.
+ *   6 = frontal look ahead; 2 = blink.
+ *
+ * x is normalized along the available route, NOT the whole canvas:
+ *   0 = left turnaround, 0.5 = middle, 1 = right turnaround.
+ * bobPx is a small vertical offset at a nominal 256 px mascot height.
+ * Scale bobPx with the rendered mascot height if necessary.
+ * Art is never mirrored. `direction` is motion metadata, not a scaleX value.
+ * Use a common grounded-foot pivot for all source poses when assembling art.
+ */
+
+const DURATION = 14.4;
+const REFERENCE_HEIGHT = 256;
+
+const PHASES = Object.freeze([
+  { id: "walk-right-to-center", start: 0, end: 2, kind: "walk", direction: 1, from: 0, to: 0.5 },
+  { id: "wait-at-center-right", start: 2, end: 4.6, kind: "wait", direction: 1, from: 0.5, to: 0.5 },
+  { id: "walk-right-to-edge", start: 4.6, end: 6.6, kind: "walk", direction: 1, from: 0.5, to: 1 },
+  { id: "turn-at-right-edge", start: 6.6, end: 7.2, kind: "turn", direction: 1, from: 1, to: 1 },
+  { id: "walk-left-to-center", start: 7.2, end: 9.2, kind: "walk", direction: -1, from: 1, to: 0.5 },
+  { id: "wait-at-center-left", start: 9.2, end: 11.8, kind: "wait", direction: -1, from: 0.5, to: 0.5 },
+  { id: "walk-left-to-edge", start: 11.8, end: 13.8, kind: "walk", direction: -1, from: 0.5, to: 0 },
+  { id: "turn-at-left-edge", start: 13.8, end: DURATION, kind: "turn", direction: -1, from: 0, to: 0 },
+].map((phase) => Object.freeze(phase)));
+
+const clamp01 = (value) => Math.max(0, Math.min(1, value));
+
+/**
+ * Integrate a cosine velocity ramp: accelerate for 0.25 s, cruise at constant
+ * speed for 1.5 s, then decelerate for 0.25 s. Both stops have zero velocity.
+ * This keeps the body from gliding during the midpoint watch/tapping beat.
+ */
+function travelAt(elapsed, duration) {
+  const ramp = Math.min(0.25, duration / 3);
+  const t = Math.max(0, Math.min(duration, elapsed));
+  const distanceScale = duration - ramp;
+  let progress;
+  let speedRatio;
+
+  if (t < ramp) {
+    progress = (t / 2 - (ramp / (2 * Math.PI)) * Math.sin((Math.PI * t) / ramp)) / distanceScale;
+    speedRatio = (1 - Math.cos((Math.PI * t) / ramp)) / 2;
+  } else if (t > duration - ramp) {
+    const remaining = duration - t;
+    progress = 1 - (remaining / 2 - (ramp / (2 * Math.PI)) * Math.sin((Math.PI * remaining) / ramp)) / distanceScale;
+    speedRatio = (1 - Math.cos((Math.PI * remaining) / ramp)) / 2;
+  } else {
+    progress = (t - ramp / 2) / distanceScale;
+    speedRatio = 1;
+  }
+
+  return { progress: clamp01(progress), speedRatio };
+}
+
+/**
+ * Return the deterministic pose and placement at any time in seconds.
+ * Safe for requestAnimationFrame, an export renderer, seek controls and tests.
+ * Negative times wrap; non-finite inputs select the start of the loop.
+ *
+ * Additional output:
+ * - pose: source image index, integer 0..11.
+ * - facing: "right", "front", or "left" (informational only).
+ * - action: readable description of the current beat.
+ * - tap: 1..3 during each toe-tap cycle, otherwise 0.
+ * - footLifted: whether the selected waiting pose is the raised-foot pose.
+ * - phase: stable phase id from PHASES; elapsed: seconds within that phase.
+ */
+function sampleMotion(seconds) {
+  const finiteSeconds = Number.isFinite(seconds) ? seconds : 0;
+  const time = ((finiteSeconds % DURATION) + DURATION) % DURATION;
+  const phase = PHASES.find((candidate) => time >= candidate.start && time < candidate.end) || PHASES[0];
+  const elapsed = time - phase.start;
+  const duration = phase.end - phase.start;
+  const direction = phase.direction;
+  const stancePose = direction === 1 ? 5 : 11;
+  const nextStancePose = direction === 1 ? 11 : 5;
+  const profile = direction === 1 ? "right" : "left";
+
+  const state = {
+    time,
+    phase: phase.id,
+    kind: phase.kind,
+    elapsed,
+    direction,
+    x: phase.from,
+    bobPx: 0,
+    pose: stancePose,
+    facing: profile,
+    action: "walk",
+    tap: 0,
+    footLifted: false,
+  };
+
+  if (phase.kind === "walk") {
+    const { progress, speedRatio } = travelAt(elapsed, duration);
+    state.x = phase.from + (phase.to - phase.from) * progress;
+
+    // Three gait cycles for each two-second route segment. Position determines
+    // gait phase, so the steps also ease in/out when the travel speed changes.
+    const cycle = progress >= 1 ? 0 : (progress * 3) % 1;
+    const poses = direction === 1 ? [5, 3, 4] : [11, 9, 10];
+    state.pose = poses[Math.min(2, Math.floor(cycle * 3))];
+    state.bobPx = -1.4 * Math.sin(Math.PI * cycle) * speedRatio || 0;
+    return state;
+  }
+
+  if (phase.kind === "wait") {
+    // The full 2.6 s pause is exactly at the midpoint, in both directions.
+    state.x = 0.5;
+    const downPose = direction === 1 ? 1 : 8;
+    const upPose = direction === 1 ? 0 : 7;
+
+    if (elapsed < 0.25) {
+      state.action = "stop-and-face-front";
+      state.pose = elapsed < 0.10 ? stancePose : 6;
+      state.facing = elapsed < 0.10 ? profile : "front";
+    } else if (elapsed < 0.70) {
+      state.action = "look-down-at-watch";
+      state.pose = elapsed < 0.38 ? 6 : downPose;
+      state.facing = "front";
+    } else if (elapsed < 1.15) {
+      state.action = "look-at-watch";
+      state.pose = downPose;
+      state.facing = "front";
+    } else if (elapsed < 2.20) {
+      state.action = "tap-foot";
+      const tapElapsed = elapsed - 1.15;
+      const tapIndex = Math.min(2, Math.floor(tapElapsed / 0.35));
+      const withinTap = tapElapsed - tapIndex * 0.35;
+      state.tap = tapIndex + 1;
+      state.footLifted = withinTap < 0.15;
+      state.pose = state.footLifted ? upPose : downPose;
+      state.facing = "front";
+    } else {
+      state.action = "look-up-and-resume";
+      state.pose = elapsed < 2.48 ? 6 : stancePose;
+      state.facing = elapsed < 2.48 ? "front" : profile;
+    }
+    return state;
+  }
+
+  // The edge turnaround is stationary, with a frontal intermediate pose.
+  // The final stance equals the following walk's first stance, including at
+  // 14.4 s -> 0 s. Thus there is no position, bob, or pose jump at the seam.
+  state.action = "turn-around";
+  if (elapsed < 0.12) {
+    state.pose = stancePose;
+  } else if (elapsed < 0.46) {
+    state.pose = 6;
+    state.facing = "front";
+  } else {
+    state.pose = nextStancePose;
+    state.facing = direction === 1 ? "left" : "right";
+  }
+  return state;
+}
+
+const canvas=document.getElementById('rabbit');
+const ctx=canvas.getContext('2d',{alpha:true});
+const atlas=new Image();
+atlas.decoding='async';
+const reducedMotion=window.matchMedia('(prefers-reduced-motion: reduce)');
+let ready=false,elapsed=0,lastTime=null,frame=null;
+
+function draw(){
+  if(!ready||!ctx)return;
+  const state=sampleMotion(reducedMotion.matches?2.85:elapsed);
+  ctx.setTransform(canvas.width/640,0,0,canvas.height/360,0,0);
+  ctx.clearRect(0,0,640,360);
+  ctx.imageSmoothingEnabled=true;
+  ctx.imageSmoothingQuality='high';
+  ctx.drawImage(atlas,(state.pose%4)*256,Math.floor(state.pose/4)*352,256,352,
+    118+404*state.x-107,340-336*(294/352)+state.bobPx*(294/256),214,294);
+}
+
+function resize(){
+  const width=canvas.getBoundingClientRect().width||640;
+  const ratio=Math.min(window.devicePixelRatio||1,2);
+  const pixels=Math.max(1,Math.round(width*ratio));
+  const height=Math.max(1,Math.round(pixels*360/640));
+  if(canvas.width!==pixels||canvas.height!==height){canvas.width=pixels;canvas.height=height;}
+  draw();
+}
+
+function tick(now){
+  frame=null;
+  if(!ready||document.hidden||reducedMotion.matches){lastTime=null;return;}
+  if(lastTime!==null)elapsed=(elapsed+(now-lastTime)/1000)%DURATION;
+  lastTime=now;
+  draw();
+  frame=requestAnimationFrame(tick);
+}
+
+function syncPlayback(){
+  if(frame!==null)cancelAnimationFrame(frame);
+  frame=null;lastTime=null;
+  draw();
+  if(ready&&!document.hidden&&!reducedMotion.matches)frame=requestAnimationFrame(tick);
+}
+
+atlas.onload=()=>{ready=true;resize();syncPlayback();};
+window.addEventListener('resize',resize);
+document.addEventListener('visibilitychange',syncPlayback);
+reducedMotion.addEventListener('change',syncPlayback);
+if(typeof ResizeObserver!=='undefined')new ResizeObserver(resize).observe(canvas);
+atlas.src='/loaders/walking-atlas.webp';
+</script>
+</body>
+</html>

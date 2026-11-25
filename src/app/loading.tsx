@@ -1,8 +1,4 @@
-import { Loading } from "@/components/ui/feedback";
+import { FullPageLoader } from "@/components/ui/full-page-loader";
 export default function PageLoading() {
-  return (
-    <div className="route-loading">
-      <Loading />
-    </div>
-  );
+  return <FullPageLoader />;
 }

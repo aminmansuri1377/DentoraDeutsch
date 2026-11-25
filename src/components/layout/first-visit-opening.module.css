@@ -1,0 +1,3 @@
+.overlay { position: fixed; inset: 0; z-index: 9999; background: #8b2fc0; overflow: hidden; }
+.art { object-fit: cover; object-position: center center; }
+@media (min-aspect-ratio: 9/16) { .art { object-fit: contain; background: #8b2fc0; } }

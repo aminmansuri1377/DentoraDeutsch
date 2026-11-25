@@ -1,4 +1,4 @@
-import { Loading } from "@/components/ui/feedback";
+import { FullPageLoader } from "@/components/ui/full-page-loader";
 export default function LearningLoading() {
-  return <Loading label="Dein Lernraum wird vorbereitet …" />;
+  return <FullPageLoader label="Dein Lernraum wird vorbereitet …" />;
 }

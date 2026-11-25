@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Providers } from "@/trpc/provider";
+import { FirstVisitOpening } from "@/components/layout/first-visit-opening";
 import "./globals.css";
 import "./mobile.css";
 import "./panel.css";
@@ -15,7 +16,7 @@ export default function RootLayout({
   return (
     <html lang="de">
       <body>
-        <Providers>{children}</Providers>
+        <Providers><FirstVisitOpening />{children}</Providers>
       </body>
     </html>
   );

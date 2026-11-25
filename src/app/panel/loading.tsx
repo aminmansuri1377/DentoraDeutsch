@@ -1,8 +1,4 @@
-import { Loading } from "@/components/ui/feedback";
+import { FullPageLoader } from "@/components/ui/full-page-loader";
 export default function PanelLoading() {
-  return (
-    <div className="panel-loading">
-      <Loading label="Dein Arbeitsbereich wird vorbereitet …" />
-    </div>
-  );
+  return <FullPageLoader label="Dein Arbeitsbereich wird vorbereitet …" />;
 }
