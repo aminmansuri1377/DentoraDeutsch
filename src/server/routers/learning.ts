@@ -2,6 +2,7 @@ import { z } from "zod";
 import { protectedProcedure, router } from "../trpc";
 import { requireLesson } from "../services/access";
 import { startLesson, submitAnswer, finishLesson } from "../services/learning";
+import { getLearningCatalog } from "../services/catalog";
 export const learningRouter = router({
   questionBookmarks: protectedProcedure.query(({ ctx }) =>
     ctx.db.questionBookmark.findMany({
@@ -43,44 +44,7 @@ export const learningRouter = router({
     }),
 
   catalog: protectedProcedure.query(({ ctx }) =>
-    ctx.db.course.findMany({
-      where: { status: "PUBLISHED" },
-      include: {
-        specialty: true,
-        chapters: {
-          orderBy: { position: "asc" },
-          include: {
-            lessons: {
-              where: {
-                OR: [
-                  { status: "PUBLISHED" },
-                  { status: "DRAFT", slug: { startsWith: "dentigo-path-" } },
-                ],
-              },
-              orderBy: { position: "asc" },
-              select: {
-                id: true,
-                title: true,
-                slug: true,
-                position: true,
-                estimatedMinutes: true,
-                status: true,
-                freePreview: true,
-                progress: {
-                  where: { userId: ctx.userId },
-                  select: { completedAt: true },
-                },
-              },
-            },
-          },
-        },
-      },
-      orderBy: [
-        { specialty: { position: "asc" } },
-        { createdAt: "asc" },
-        { id: "asc" },
-      ],
-    }),
+    getLearningCatalog(ctx.db, ctx.userId),
   ),
   lesson: protectedProcedure
     .input(z.object({ id: z.string() }))

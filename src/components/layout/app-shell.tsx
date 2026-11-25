@@ -30,8 +30,11 @@ export function AppShell({
 }) {
   const path = usePathname(),
     api = useTRPC();
-  const me = useQuery({ ...api.profile.me.queryOptions(), enabled: !demo });
-  const game = demo ? { streak: 7, gems: 125, hearts: 5 } : me.data?.game;
+  const header = useQuery({
+    ...api.profile.header.queryOptions(),
+    enabled: !demo,
+  });
+  const game = demo ? { streak: 7, gems: 125, hearts: 5 } : header.data?.game;
   const href = (route: string) =>
     demo ? `/demo${route === "/lernen" ? "" : route}` : route;
   return (

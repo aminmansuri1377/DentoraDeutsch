@@ -51,7 +51,7 @@ export function ProfilePage() {
       {tab === "posts" ? (
         <PostFeed filter="mine" />
       ) : badges.isPending ? (
-        <Loading />
+        <Loading compact />
       ) : badges.error ? (
         <ErrorNotice message={badges.error.message} />
       ) : (

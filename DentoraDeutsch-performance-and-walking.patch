@@ -1,0 +1,394 @@
+diff --git a/docs/LOADING-PERFORMANCE.md b/docs/LOADING-PERFORMANCE.md
+new file mode 100644
+--- /dev/null
++++ b/docs/LOADING-PERFORMANCE.md
+@@ -0,0 +1,51 @@
++# Loading and initial-page performance
++
++## What changed
++
++- `/lernen` renders its initial personalized course catalog on the server and
++  includes it in the Next.js response. There is no second `learning.catalog`
++  fetch immediately after client hydration; React Query retains background
++  revalidation and normal invalidation for subsequent edits.
++- Course catalog selection only fetches fields needed by the learning screen.
++  Each user's completion state remains user-scoped. **Do not globally cache the
++  personalized catalog** or leak progress between accounts.
++- The header calls `profile.header` (a lightweight read) instead of `profile.me`
++  (counts, full user profile, game upsert, and 90 activity records).
++- `auth()` uses request-scoped React cache to avoid duplicate session reads by
++  the `(app)` layout and `/lernen` page in the same render request.
++- Non-compact `Loading` uses the supplied walking mascot; `compact` retains
++  the SVG circular rabbit for small spaces. Existing Next.js `loading.tsx`
++  boundaries already use the full-page walking animation.
++- Only `/loaders/walking.html` is allowed to be framed by the same-origin app.
++  All other routes preserve the anti-framing CSP and X-Frame-Options headers.
++  Static loader assets use one-hour browser caching to avoid revalidation on
++  every route transition.
++
++## Verify
++
++1. Apply on top of the loader patch, on the updated `master` branch.
++2. Run `npm run typecheck`, `npm test`, and `npm run build`.
++3. Test as a signed-in learner in a fresh/incognito browser tab. Open Network:
++   initial `/lernen` should not issue a `learning.catalog` client RPC request.
++   A separate `profile.header` request should appear, replacing the full
++   `profile.me` call from the shell. Direct profile and goals pages still use
++   `profile.me` where their detailed fields are required.
++4. Open `/community`, `/profil`, `/shop`, and a lesson on slow network: the
++   walking animation should appear for large content waits, with the circular
++   rabbit retained for smaller nested areas.
++5. Complete a lesson and verify header counters update, course completion
++   refreshes, and navigation still uses the correct user's progress.
++
++For DB query timings, optionally set `DENTORA_PERF_LOG=true` in the Vercel
++server environment or local `.env`, then inspect server logs for
++`[dentora:perf] learning.catalog`. It reports duration and course count, not
++personal data.
++
++## What this does not fix
++
++Supabase region/network latency, cold Vercel functions, slow SQL plans on very
++large catalogs, and DNS/connection timeouts may still delay the first response.
++Use a deployed-production browser waterfall and Vercel logs to separate time to
++first byte from hydration and API fetching before changing database deployment
++configuration. Never enable cross-user caching for progress, nor cache session
++cookies or authorization responses in a CDN.
+diff --git a/next.config.ts b/next.config.ts
+--- a/next.config.ts
++++ b/next.config.ts
+@@ -1,4 +1,15 @@
+ import type { NextConfig } from "next";
++
++function contentSecurityPolicy(frameAncestors: "'none'" | "'self'") {
++  return (
++    "default-src 'self'; script-src 'self' 'unsafe-inline'" +
++    (process.env.NODE_ENV === "development" ? " 'unsafe-eval'" : "") +
++    "; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self'; connect-src 'self'; frame-ancestors " +
++    frameAncestors +
++    "; base-uri 'self'; form-action 'self'"
++  );
++}
++
+ const nextConfig: NextConfig = {
+   poweredByHeader: false,
+   serverExternalPackages: ["@electric-sql/pglite", "pglite-prisma-adapter"],
+@@ -16,10 +27,27 @@
+           },
+           {
+             key: "Content-Security-Policy",
+-            value:
+-              "default-src 'self'; script-src 'self' 'unsafe-inline'" +
+-              (process.env.NODE_ENV === "development" ? " 'unsafe-eval'" : "") +
+-              "; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'",
++            value: contentSecurityPolicy("'none'"),
++          },
++        ],
++      },
++      {
++        // The walking mascot is sandboxed and can only be embedded by Dentora.
++        source: "/loaders/walking.html",
++        headers: [
++          { key: "X-Frame-Options", value: "SAMEORIGIN" },
++          {
++            key: "Content-Security-Policy",
++            value: contentSecurityPolicy("'self'"),
++          },
++        ],
++      },
++      {
++        source: "/loaders/:path*",
++        headers: [
++          {
++            key: "Cache-Control",
++            value: "public, max-age=3600, stale-while-revalidate=86400",
+           },
+         ],
+       },
+diff --git a/src/app/(app)/lernen/page.tsx b/src/app/(app)/lernen/page.tsx
+--- a/src/app/(app)/lernen/page.tsx
++++ b/src/app/(app)/lernen/page.tsx
+@@ -1,2 +1,18 @@
++import { redirect } from "next/navigation";
++import { auth } from "@/server/auth";
++import { db } from "@/server/db";
++import { getLearningCatalog } from "@/server/services/catalog";
+ import { LearningPage } from "@/features/learning/components/learning-page";
+-export default LearningPage;
++
++export default async function Page() {
++  const session = await auth();
++  if (!session?.user?.id) redirect("/anmelden");
++
++  const catalog = await getLearningCatalog(db, session.user.id);
++  return (
++    <LearningPage
++      initialCatalog={catalog}
++      name={session.user.name?.split(" ")[0] ?? undefined}
++    />
++  );
++}
+diff --git a/src/components/layout/app-shell.tsx b/src/components/layout/app-shell.tsx
+--- a/src/components/layout/app-shell.tsx
++++ b/src/components/layout/app-shell.tsx
+@@ -32,4 +32,7 @@
+     api = useTRPC();
+-  const me = useQuery({ ...api.profile.me.queryOptions(), enabled: !demo });
+-  const game = demo ? { streak: 7, gems: 125, hearts: 5 } : me.data?.game;
++  const header = useQuery({
++    ...api.profile.header.queryOptions(),
++    enabled: !demo,
++  });
++  const game = demo ? { streak: 7, gems: 125, hearts: 5 } : header.data?.game;
+   const href = (route: string) =>
+diff --git a/src/components/ui/feedback.tsx b/src/components/ui/feedback.tsx
+--- a/src/components/ui/feedback.tsx
++++ b/src/components/ui/feedback.tsx
+@@ -1,4 +1,5 @@
+ import { Loader } from "./loader";
++import { WalkingLoader } from "./walking-loader";
+ export function Loading({
+   label = "Einen Moment …",
+   compact = false,
+@@ -11,9 +12,10 @@
+       className={`loading-state ${compact ? "loading-compact" : "card"}`}
+       role="status"
+       aria-live="polite"
++      aria-label={label}
+     >
+-      <Loader />
+-      <span>{label}</span>
++      {compact ? <Loader /> : <WalkingLoader />}
++      <span className="sr-only">{label}</span>
+     </div>
+   );
+ }
+diff --git a/src/features/community/comments.tsx b/src/features/community/comments.tsx
+--- a/src/features/community/comments.tsx
++++ b/src/features/community/comments.tsx
+@@ -61,3 +61,3 @@
+       {comments.isPending ? (
+-        <Loading />
++        <Loading compact />
+       ) : comments.error ? (
+diff --git a/src/features/learning/components/learning-page.tsx b/src/features/learning/components/learning-page.tsx
+--- a/src/features/learning/components/learning-page.tsx
++++ b/src/features/learning/components/learning-page.tsx
+@@ -1,17 +1,27 @@
+ "use client";
+ import { useQuery } from "@tanstack/react-query";
+ import { useTRPC } from "@/trpc/provider";
++import type { LearningCatalog } from "@/server/services/catalog";
+ import { LearningDashboard } from "./learning-dashboard";
+ import { Loading, ErrorNotice } from "@/components/ui/feedback";
+-export function LearningPage() {
++export function LearningPage({
++  initialCatalog,
++  name,
++}: {
++  initialCatalog?: LearningCatalog;
++  name?: string;
++}) {
+   const trpc = useTRPC();
+-  const courses = useQuery(trpc.learning.catalog.queryOptions());
+-  const me = useQuery(trpc.profile.me.queryOptions());
++  const courses = useQuery({
++    ...trpc.learning.catalog.queryOptions(),
++    initialData: initialCatalog,
++    staleTime: 120_000,
++  });
+   if (courses.isPending) return <Loading />;
+   if (courses.error) return <ErrorNotice message={courses.error.message} />;
+   return (
+     <LearningDashboard
+-      name={me.data?.user.name?.split(" ")[0]}
++      name={name}
+       courses={courses.data.map((c) => ({
+         id: c.id,
+         title: c.title,
+diff --git a/src/features/learning/components/lesson-page.tsx b/src/features/learning/components/lesson-page.tsx
+--- a/src/features/learning/components/lesson-page.tsx
++++ b/src/features/learning/components/lesson-page.tsx
+@@ -30,3 +30,7 @@
+       }}
+-      onStart={() => start.mutateAsync({ lessonId: id })}
++      onStart={async () => {
++        const attempt = await start.mutateAsync({ lessonId: id });
++        void cache.invalidateQueries({ queryKey: api.profile.header.queryKey() });
++        return attempt;
++      }}
+       onAnswer={async (attemptId, questionId, optionId, submittedText) => {
+@@ -38,3 +42,4 @@
+         });
+         void cache.invalidateQueries({ queryKey: api.profile.me.queryKey() });
++        void cache.invalidateQueries({ queryKey: api.profile.header.queryKey() });
+         return response;
+diff --git a/src/features/profile/connections.tsx b/src/features/profile/connections.tsx
+--- a/src/features/profile/connections.tsx
++++ b/src/features/profile/connections.tsx
+@@ -31,3 +31,3 @@
+       {data.isPending ? (
+-        <Loading />
++        <Loading compact />
+       ) : data.error ? (
+diff --git a/src/features/profile/profile-page.tsx b/src/features/profile/profile-page.tsx
+--- a/src/features/profile/profile-page.tsx
++++ b/src/features/profile/profile-page.tsx
+@@ -53,3 +53,3 @@
+       ) : badges.isPending ? (
+-        <Loading />
++        <Loading compact />
+       ) : badges.error ? (
+diff --git a/src/server/auth.ts b/src/server/auth.ts
+--- a/src/server/auth.ts
++++ b/src/server/auth.ts
+@@ -1,2 +1,3 @@
+ import { testSession } from "./demo-session";
++import { cache } from "react";
+ import NextAuth from "next-auth";
+@@ -57,5 +58,6 @@
+ });
+ 
+-export async function auth() {
++/** React.cache is scoped to a server render request, never shared across users. */
++export const auth = cache(async () => {
+   return (await testSession()) ?? (await verifiedAuth());
+-}
++});
+diff --git a/src/server/routers/learning.ts b/src/server/routers/learning.ts
+--- a/src/server/routers/learning.ts
++++ b/src/server/routers/learning.ts
+@@ -2,4 +2,5 @@
+ import { protectedProcedure, router } from "../trpc";
+ import { requireLesson } from "../services/access";
+ import { startLesson, submitAnswer, finishLesson } from "../services/learning";
++import { getLearningCatalog } from "../services/catalog";
+ export const learningRouter = router({
+@@ -43,43 +44,6 @@
+     }),
+ 
+   catalog: protectedProcedure.query(({ ctx }) =>
+-    ctx.db.course.findMany({
+-      where: { status: "PUBLISHED" },
+-      include: {
+-        specialty: true,
+-        chapters: {
+-          orderBy: { position: "asc" },
+-          include: {
+-            lessons: {
+-              where: {
+-                OR: [
+-                  { status: "PUBLISHED" },
+-                  { status: "DRAFT", slug: { startsWith: "dentigo-path-" } },
+-                ],
+-              },
+-              orderBy: { position: "asc" },
+-              select: {
+-                id: true,
+-                title: true,
+-                slug: true,
+-                position: true,
+-                estimatedMinutes: true,
+-                status: true,
+-                freePreview: true,
+-                progress: {
+-                  where: { userId: ctx.userId },
+-                  select: { completedAt: true },
+-                },
+-              },
+-            },
+-          },
+-        },
+-      },
+-      orderBy: [
+-        { specialty: { position: "asc" } },
+-        { createdAt: "asc" },
+-        { id: "asc" },
+-      ],
+-    }),
++    getLearningCatalog(ctx.db, ctx.userId),
+   ),
+   lesson: protectedProcedure
+diff --git a/src/server/routers/profile.ts b/src/server/routers/profile.ts
+--- a/src/server/routers/profile.ts
++++ b/src/server/routers/profile.ts
+@@ -1,4 +1,11 @@
+ import { z } from "zod";
+ import { router, protectedProcedure, publicProcedure } from "../trpc";
+ export const profileRouter = router({
++  header: protectedProcedure.query(async ({ ctx }) => {
++    const game = await ctx.db.gameState.findUnique({
++      where: { userId: ctx.userId },
++      select: { streak: true, gems: true, hearts: true },
++    });
++    return { game: game ?? { streak: 0, gems: 0, hearts: 5 } };
++  }),
+   me: protectedProcedure.query(async ({ ctx }) => {
+diff --git a/src/server/services/catalog.ts b/src/server/services/catalog.ts
+new file mode 100644
+--- /dev/null
++++ b/src/server/services/catalog.ts
+@@ -0,0 +1,63 @@
++import "server-only";
++import type { Prisma } from "@prisma/client";
++
++/** A user-scoped, compact catalog shared by SSR and tRPC. Do not cache across users. */
++export async function getLearningCatalog(
++  db: Prisma.TransactionClient,
++  userId: string,
++) {
++  const startedAt = performance.now();
++  const courses = await db.course.findMany({
++    where: { status: "PUBLISHED" },
++    orderBy: [
++      { specialty: { position: "asc" } },
++      { createdAt: "asc" },
++      { id: "asc" },
++    ],
++    select: {
++      id: true,
++      slug: true,
++      title: true,
++      description: true,
++      access: true,
++      specialty: { select: { id: true, title: true } },
++      chapters: {
++        orderBy: { position: "asc" },
++        select: {
++          id: true,
++          title: true,
++          guide: true,
++          lessons: {
++            where: {
++              OR: [
++                { status: "PUBLISHED" },
++                { status: "DRAFT", slug: { startsWith: "dentigo-path-" } },
++              ],
++            },
++            orderBy: { position: "asc" },
++            select: {
++              id: true,
++              title: true,
++              estimatedMinutes: true,
++              status: true,
++              progress: {
++                where: { userId },
++                select: { completedAt: true },
++              },
++            },
++          },
++        },
++      },
++    },
++  });
++
++  if (process.env.DENTORA_PERF_LOG === "true") {
++    console.info("[dentora:perf] learning.catalog", {
++      durationMs: Math.round(performance.now() - startedAt),
++      courseCount: courses.length,
++    });
++  }
++  return courses;
++}
++
++export type LearningCatalog = Awaited<ReturnType<typeof getLearningCatalog>>;

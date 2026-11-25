@@ -28,7 +28,11 @@ export function LessonPage({ id }: { id: string }) {
           options: q.options,
         })),
       }}
-      onStart={() => start.mutateAsync({ lessonId: id })}
+      onStart={async () => {
+        const attempt = await start.mutateAsync({ lessonId: id });
+        void cache.invalidateQueries({ queryKey: api.profile.header.queryKey() });
+        return attempt;
+      }}
       onAnswer={async (attemptId, questionId, optionId, submittedText) => {
         const response = await answer.mutateAsync({
           attemptId,
@@ -37,6 +41,7 @@ export function LessonPage({ id }: { id: string }) {
           submittedText,
         });
         void cache.invalidateQueries({ queryKey: api.profile.me.queryKey() });
+        void cache.invalidateQueries({ queryKey: api.profile.header.queryKey() });
         return response;
       }}
       onFinish={async (attemptId) => {

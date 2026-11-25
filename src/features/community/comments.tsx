@@ -59,7 +59,7 @@ export function Comments({
         {create.error && <p role="alert">{create.error.message}</p>}
       </form>
       {comments.isPending ? (
-        <Loading />
+        <Loading compact />
       ) : comments.error ? (
         <ErrorNotice message={comments.error.message} />
       ) : (

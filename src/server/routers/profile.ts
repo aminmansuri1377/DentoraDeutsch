@@ -1,6 +1,13 @@
 import { z } from "zod";
 import { router, protectedProcedure, publicProcedure } from "../trpc";
 export const profileRouter = router({
+  header: protectedProcedure.query(async ({ ctx }) => {
+    const game = await ctx.db.gameState.findUnique({
+      where: { userId: ctx.userId },
+      select: { streak: true, gems: true, hearts: true },
+    });
+    return { game: game ?? { streak: 0, gems: 0, hearts: 5 } };
+  }),
   me: protectedProcedure.query(async ({ ctx }) => {
     const user = await ctx.db.user.findUniqueOrThrow({
       where: { id: ctx.userId },

@@ -29,7 +29,7 @@ export function Connections({
         <button onClick={onClose}>Schließen</button>
       </header>
       {data.isPending ? (
-        <Loading />
+        <Loading compact />
       ) : data.error ? (
         <ErrorNotice message={data.error.message} />
       ) : (

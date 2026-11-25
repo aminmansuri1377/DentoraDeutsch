@@ -1,4 +1,5 @@
 import { Loader } from "./loader";
+import { WalkingLoader } from "./walking-loader";
 export function Loading({
   label = "Einen Moment …",
   compact = false,
@@ -11,9 +12,10 @@ export function Loading({
       className={`loading-state ${compact ? "loading-compact" : "card"}`}
       role="status"
       aria-live="polite"
+      aria-label={label}
     >
-      <Loader />
-      <span>{label}</span>
+      {compact ? <Loader /> : <WalkingLoader />}
+      <span className="sr-only">{label}</span>
     </div>
   );
 }

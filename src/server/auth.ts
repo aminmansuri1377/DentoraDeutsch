@@ -1,4 +1,5 @@
 import { testSession } from "./demo-session";
+import { cache } from "react";
 import NextAuth from "next-auth";
 import Nodemailer from "next-auth/providers/nodemailer";
 import { PrismaAdapter } from "@auth/prisma-adapter";
@@ -56,6 +57,7 @@ export const {
   },
 });
 
-export async function auth() {
+/** React.cache is scoped to a server render request, never shared across users. */
+export const auth = cache(async () => {
   return (await testSession()) ?? (await verifiedAuth());
-}
+});
