@@ -43,8 +43,8 @@ export const {
         await createTransport(provider.server).sendMail({
           to: { address: identifier, name: "" },
           from: provider.from,
-          subject: "Dein Anmeldelink für Dentora",
-          text: `Melde dich bei Dentora an: ${url}\nDieser Link ist 15 Minuten gültig. Falls du ihn nicht angefordert hast, ignoriere diese E-Mail.`,
+          subject: "Dein Anmeldelink für Zahn Uni",
+          text: `Melde dich bei Zahn Uni an: ${url}\nDieser Link ist 15 Minuten gültig. Falls du ihn nicht angefordert hast, ignoriere diese E-Mail.`,
         });
       },
     }),

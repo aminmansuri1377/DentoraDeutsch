@@ -9,7 +9,7 @@ export function PanelLogin({ testMode }: { testMode: boolean }) {
   return (
     <main className="panel-login">
       <div className="panel-login-brand">
-        <span>✦ dentora.</span>
+        <span>✦ Zahn Uni</span>
         <small>ADMINISTRATION</small>
         <h1>
           Alles im Blick.

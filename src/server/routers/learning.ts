@@ -154,9 +154,18 @@ export const learningRouter = router({
   highlights: protectedProcedure.query(({ ctx }) =>
     ctx.db.highlight.findMany({
       where: { userId: ctx.userId },
+      orderBy: { createdAt: "desc" },
       include: { block: { select: { lessonId: true } } },
     }),
   ),
+  removeHighlight: protectedProcedure
+    .input(z.object({ id: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      await ctx.db.highlight.deleteMany({
+        where: { id: input.id, userId: ctx.userId },
+      });
+      return { removed: true };
+    }),
   review: protectedProcedure.query(({ ctx }) =>
     ctx.db.reviewCard.findMany({
       where: { userId: ctx.userId, dueAt: { lte: new Date() } },

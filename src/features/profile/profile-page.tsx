@@ -1,5 +1,6 @@
 "use client";
 import Link from "next/link";
+import { BookmarkCheck, ArrowRight } from "lucide-react";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useTRPC } from "@/trpc/provider";
@@ -30,6 +31,14 @@ export function ProfilePage() {
         onConnections={setConnections}
         onPosts={() => setTab("posts")}
       />
+      <Link href="/gespeichert" className={styles.collectionShortcut}>
+        <span className={styles.collectionIcon}><BookmarkCheck size={23} /></span>
+        <span className={styles.collectionCopy}>
+          <strong>Meine Sammlung</strong>
+          <small>Gespeicherte Lektionen, Fragen und Markierungen</small>
+        </span>
+        <ArrowRight size={20} aria-hidden="true" />
+      </Link>
       {connections && (
         <Connections
           userId={user.id}
@@ -60,7 +69,6 @@ export function ProfilePage() {
       <div className={styles.menu}>
         {[
           ["/community?filter=saved", "Gespeicherte Beiträge"],
-          ["/gespeichert", "Gespeicherte Lektionen"],
           ["/shop", "Shop & Pro"],
           ["/einstellungen", "Einstellungen"],
           ["/hilfe", "Hilfe & Support"],

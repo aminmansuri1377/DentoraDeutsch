@@ -146,7 +146,7 @@ export async function seedDatabase(clientOrRunner: PrismaClient | SeedOperation)
     where: { slug: "lernmethodik" },
     create: {
       slug: "lernmethodik",
-      title: "Dein Einstieg in Dentora",
+      title: "Dein Einstieg in Zahn Uni",
       description: "Lerne die Plattform mit einer kurzen Einführung kennen.",
       specialtyId: specialty.id,
       status: "PUBLISHED",
@@ -236,7 +236,7 @@ export async function seedDatabase(clientOrRunner: PrismaClient | SeedOperation)
       where: { slug: `pro-${days}` },
       create: {
         slug: `pro-${days}`,
-        title: `Dentora Pro · ${days} Tage`,
+        title: `Zahn Uni Pro · ${days} Tage`,
         description:
           "Zugang zu veröffentlichten Pro-Kursen. Keine automatische Verlängerung.",
         kind: "PRO",

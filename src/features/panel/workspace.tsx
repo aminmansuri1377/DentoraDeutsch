@@ -62,7 +62,7 @@ export function PanelWorkspace({
     <div className="panel-shell">
       <aside className="panel-sidebar">
         <Link href="/panel" className="brand">
-          <span className="brand-symbol">✦</span>dentora.
+          <span className="brand-symbol">✦</span>Zahn Uni
         </Link>
         <span className="panel-caption">VERWALTUNG</span>
         <label className="panel-nav-search">

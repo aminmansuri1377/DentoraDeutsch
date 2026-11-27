@@ -43,6 +43,8 @@ export function LessonPlayer({
   onAnswer,
   onFinish,
   onBookmark,
+  bookmarked = false,
+  bookmarkLoading = false,
   demo = false,
   renderTools,
 }: {
@@ -60,7 +62,9 @@ export function LessonPlayer({
     submittedText?: string | null;
   }>;
   onFinish: (id: string) => Promise<{ score: number; xp: number }>;
-  onBookmark: () => Promise<unknown>;
+  onBookmark: (saved: boolean) => Promise<unknown>;
+  bookmarked?: boolean;
+  bookmarkLoading?: boolean;
   demo?: boolean;
   renderTools?: (context: {
     questionId?: string;
@@ -77,7 +81,8 @@ export function LessonPlayer({
     [hint, setHint] = useState(false),
     [busy, setBusy] = useState(false),
     [error, setError] = useState<string>(),
-    [saved, setSaved] = useState(false);
+    [savedOverride, setSavedOverride] = useState<boolean | undefined>();
+  const saved = savedOverride ?? bookmarked;
   const block = lesson.blocks[step],
     question = lesson.questions[step - lesson.blocks.length];
   const feedback = question ? answers[question.id] : undefined;
@@ -148,11 +153,14 @@ export function LessonPlayer({
         <h1>{lesson.title}</h1>
         <Button
           variant="ghost"
-          aria-label="Lektion speichern"
+          aria-label={saved ? "Lektion aus Sammlung entfernen" : "Lektion speichern"}
+          aria-pressed={saved}
+          disabled={busy || bookmarkLoading}
           onClick={() =>
             act(async () => {
-              await onBookmark();
-              setSaved(true);
+              const nextSaved = !saved;
+              await onBookmark(nextSaved);
+              setSavedOverride(nextSaved);
             })
           }
         >

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { BrandWordmark } from "@/components/layout/brand-wordmark";
 import { LoginForm } from "@/features/auth/login-form";
 import { testModeEnabled } from "@/server/test-mode";
 export const dynamic = "force-dynamic";
@@ -7,7 +8,7 @@ export default function Page() {
     <main className="auth-screen mobile-auth">
       <div className="auth-card">
         <Link href="/demo" className="brand">
-          ✦ dentora.
+          <BrandWordmark large />
         </Link>
         <span className="eyebrow">DEIN WISSEN. DEIN TEMPO.</span>
         <h1>

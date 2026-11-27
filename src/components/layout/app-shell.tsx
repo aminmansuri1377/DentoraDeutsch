@@ -1,6 +1,7 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { BrandWordmark } from "./brand-wordmark";
 import {
   BookOpen,
   Users,
@@ -46,9 +47,9 @@ export function AppShell({
         <Link
           className="mobile-brand"
           href={href("/lernen")}
-          aria-label="Dentora Startseite"
+          aria-label="Zahn Uni Startseite"
         >
-          ✦<span>dentora.</span>
+          <BrandWordmark />
         </Link>
         <div className="mobile-counters">
           <Link

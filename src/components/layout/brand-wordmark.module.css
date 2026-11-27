@@ -1,0 +1,93 @@
+/* One wordmark for the learner header, login and welcome opening. */
+.wordmark {
+  display: inline-flex;
+  align-items: baseline;
+  white-space: nowrap;
+  min-width: 0;
+  font-family: "Arial Rounded MT Bold", "Arial Black", "Trebuchet MS", "Segoe UI", sans-serif;
+  font-kerning: normal;
+  letter-spacing: -0.052em;
+}
+.name {
+  font-size: clamp(19px, 5vw, 24px);
+  line-height: 1.06;
+  font-weight: 950;
+  color: #352044;
+  text-shadow: 0 0.5px 0 currentColor;
+}
+.suffix {
+  font-size: clamp(15px, 3.7vw, 18px);
+  line-height: 1;
+  font-weight: 900;
+  letter-spacing: -0.045em;
+  margin-left: 2px;
+  color: #8c4ac9;
+  animation: fadeIn .3s ease both;
+}
+.large .name {
+  font-size: clamp(31px, 8vw, 42px);
+}
+.large .suffix {
+  font-size: clamp(22px, 5.5vw, 29px);
+  margin-left: 3px;
+}
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(3px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .suffix { animation: none; }
+}
+
+/* Option E: playful academic hand-lettered identity for Zahn Uni.
+   Overrides the earlier rounded-bold variant without changing the shared React component. */
+.wordmark {
+  font-family: "Segoe Print", "Comic Sans MS", "Trebuchet MS", cursive;
+  letter-spacing: -0.045em;
+}
+.name {
+  position: relative;
+  display: inline-block;
+  font-family: "Segoe Print", "Comic Sans MS", "Trebuchet MS", cursive;
+  font-size: clamp(18px, 4.6vw, 22px);
+  line-height: 1.4;
+  font-weight: 900;
+  color: #291447;
+  letter-spacing: -0.075em;
+  text-shadow: none;
+  transform: rotate(-1.1deg);
+  isolation: isolate;
+}
+.name::before {
+  content: "";
+  position: absolute;
+  left: 16%;
+  right: 3%;
+  bottom: 1px;
+  height: 3px;
+  border-radius: 75% 30% 70% 35%;
+  background: linear-gradient(90deg, #ac68df, #c99af1 65%, transparent);
+  transform: rotate(-2deg);
+  z-index: -1;
+}
+.name::after {
+  content: "";
+  position: absolute;
+  width: 17px;
+  height: 17px;
+  top: -8px;
+  right: 7px;
+  background: center / contain no-repeat url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23914dcd' stroke-width='2.1' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m2 9 10-5 10 5-10 5L2 9Z'/%3E%3Cpath d='M6 11.2v5.1c3.8 2.7 8.2 2.7 12 0v-5.1M22 9v7'/%3E%3C/svg%3E");
+  transform: rotate(10deg);
+  pointer-events: none;
+}
+.suffix {
+  font-family: "Segoe Print", "Comic Sans MS", "Trebuchet MS", cursive;
+  font-size: clamp(15px, 3.7vw, 18px);
+  font-weight: 600;
+  letter-spacing: -0.045em;
+  margin-left: 6px;
+}
+.large .name { font-size: clamp(31px, 7.5vw, 39px); }
+.large .name::after { width: 24px; height: 24px; top: -10px; }
+.large .suffix { font-size: clamp(22px, 5.5vw, 29px); margin-left: 8px; }

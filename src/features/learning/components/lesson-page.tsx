@@ -8,6 +8,7 @@ export function LessonPage({ id }: { id: string }) {
   const api = useTRPC(),
     cache = useQueryClient();
   const lesson = useQuery(api.learning.lesson.queryOptions({ id }));
+  const saved = useQuery(api.learning.saved.queryOptions());
   const start = useMutation(api.learning.start.mutationOptions()),
     answer = useMutation(api.learning.answer.mutationOptions()),
     finish = useMutation(api.learning.finish.mutationOptions()),
@@ -19,6 +20,8 @@ export function LessonPage({ id }: { id: string }) {
     <LessonPlayer
       key={id}
       renderTools={(context) => <LessonTools {...context} />}
+      bookmarked={saved.data?.some((item) => item.lessonId === id) ?? false}
+      bookmarkLoading={saved.isPending}
       lesson={{
         id: l.id,
         title: l.title,
@@ -49,7 +52,10 @@ export function LessonPage({ id }: { id: string }) {
         void cache.invalidateQueries();
         return result;
       }}
-      onBookmark={() => bookmark.mutateAsync({ lessonId: id, saved: true })}
+      onBookmark={async (shouldSave) => {
+        await bookmark.mutateAsync({ lessonId: id, saved: shouldSave });
+        await cache.invalidateQueries({ queryKey: api.learning.saved.queryKey() });
+      }}
     />
   );
 }

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import styles from "./first-visit-opening.module.css";
+import { BrandWordmark } from "./brand-wordmark";
 
 const KEY = "dentora.opening.seen.v1";
 
@@ -41,16 +42,11 @@ export function FirstVisitOpening() {
 
   if (!visible) return null;
   return (
-    <div className={styles.overlay} role="status" aria-label="Dentora wird geöffnet" aria-live="polite">
-      <Image
-        className={styles.art}
-        src="/loaders/dentora-opening.webp"
-        alt="Dentora"
-        fill
-        sizes="100vw"
-        priority
-        unoptimized
-      />
+    <div className={styles.overlay} role="status" aria-label="Zahn Uni wird geöffnet" aria-live="polite">
+      <div className={styles.brandOpening}>
+        <Image src="/mascots/pro.png" alt="" width={160} height={160} priority unoptimized />
+        <div className={styles.wordmarkSurface}><BrandWordmark large /></div>
+      </div>
     </div>
   );
 }

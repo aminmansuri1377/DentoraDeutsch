@@ -1,3 +1,6 @@
-.overlay { position: fixed; inset: 0; z-index: 9999; background: #8b2fc0; overflow: hidden; }
-.art { object-fit: cover; object-position: center center; }
-@media (min-aspect-ratio: 9/16) { .art { object-fit: contain; background: #8b2fc0; } }
+.overlay { position: fixed; inset: 0; z-index: 9999; background: #8b2fc0; overflow: hidden; display: grid; place-items: center; }
+.brandOpening { display: grid; justify-items: center; gap: 17px; }
+.brandOpening img { width: 160px; height: 160px; object-fit: contain; animation: openingFloat 2s ease-in-out infinite; }
+.wordmarkSurface { background: #fff; padding: 14px 24px; border-radius: 21px; box-shadow: 0 15px 48px #35114b35; }
+@keyframes openingFloat { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-7px); } }
+@media (prefers-reduced-motion: reduce) { .brandOpening img { animation: none; } }

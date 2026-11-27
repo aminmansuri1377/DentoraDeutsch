@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Bookmark, Highlighter, Flag, Share2 } from "lucide-react";
 import { useTRPC } from "@/trpc/provider";
@@ -20,8 +21,14 @@ export function LessonTools({
     action = useAction();
   const [report, setReport] = useState(false),
     [reason, setReason] = useState("");
+  const questionBookmarks = useQuery(api.learning.questionBookmarks.queryOptions());
+  const highlights = useQuery(api.learning.highlights.queryOptions());
+  const bookmarkedQuestion = !!questionId &&
+    (questionBookmarks.data?.some((item) => item.questionId === questionId) ?? false);
+  const blockHighlights = highlights.data?.filter((item) => item.blockId === blockId) ?? [];
   const save = useMutation(api.learning.saveQuestion.mutationOptions()),
     highlight = useMutation(api.learning.highlight.mutationOptions()),
+    removeHighlight = useMutation(api.learning.removeHighlight.mutationOptions()),
     flag = useMutation(api.learning.reportQuestion.mutationOptions());
   return (
     <div className="lesson-tools">
@@ -29,35 +36,43 @@ export function LessonTools({
         {questionId && (
           <Button
             variant="ghost"
-            disabled={action.pending}
+            disabled={action.pending || questionBookmarks.isPending}
+            aria-pressed={bookmarkedQuestion}
             onClick={() =>
               action.run(async () => {
-                await save.mutateAsync({ questionId, saved: true });
-                await cache.invalidateQueries();
-              }, "Frage gespeichert.")
+                await save.mutateAsync({ questionId, saved: !bookmarkedQuestion });
+                await cache.invalidateQueries({ queryKey: api.learning.questionBookmarks.queryKey() });
+              }, bookmarkedQuestion ? "Frage entfernt." : "Frage gespeichert.")
             }
           >
-            <Bookmark size={16} />
-            Frage merken
+            <Bookmark size={16} fill={bookmarkedQuestion ? "currentColor" : "none"} />
+            {bookmarkedQuestion ? "Frage entfernen" : "Frage merken"}
           </Button>
         )}
         {blockId && text && (
           <Button
             variant="ghost"
-            disabled={action.pending}
+            disabled={action.pending || highlights.isPending}
+            aria-pressed={blockHighlights.length > 0}
             onClick={() =>
               action.run(async () => {
-                const selected = window.getSelection()?.toString();
-                const quote = (
-                  selected && text.includes(selected) ? selected : text
-                ).slice(0, 1000);
-                await highlight.mutateAsync({ blockId, quote, note: "" });
-                await cache.invalidateQueries();
-              }, "Markierung gespeichert.")
+                if (blockHighlights.length) {
+                  await Promise.all(blockHighlights.map((item) =>
+                    removeHighlight.mutateAsync({ id: item.id })
+                  ));
+                } else {
+                  const selected = window.getSelection()?.toString().trim();
+                  const quote = (
+                    selected && text.includes(selected) ? selected : text
+                  ).slice(0, 1000);
+                  await highlight.mutateAsync({ blockId, quote, note: "" });
+                }
+                await cache.invalidateQueries({ queryKey: api.learning.highlights.queryKey() });
+              }, blockHighlights.length ? "Markierung entfernt." : "Markierung gespeichert.")
             }
           >
-            <Highlighter size={16} />
-            Markieren
+            <Highlighter size={16} fill={blockHighlights.length ? "currentColor" : "none"} />
+            {blockHighlights.length ? "Markierung entfernen" : "Markieren"}
           </Button>
         )}
         <Button

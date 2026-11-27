@@ -13,7 +13,7 @@ export default async function Page({
   return (
     <main className="auth-screen">
       <article className="certificate">
-        <span className="brand">✦ dentora</span>
+        <span className="brand">✦ Zahn Uni</span>
         <p>TEILNAHMEZERTIFIKAT</p>
         <h1>{certificate.nameSnapshot}</h1>
         <p>hat den Lernkurs</p>

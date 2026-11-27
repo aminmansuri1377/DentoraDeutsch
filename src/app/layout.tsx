@@ -5,7 +5,7 @@ import "./globals.css";
 import "./mobile.css";
 import "./panel.css";
 export const metadata: Metadata = {
-  title: "Dentora · Jeden Tag ein Stück besser",
+  title: "Zahn Uni · Jeden Tag ein Stück besser",
   description: "Dein Lernraum für Zahnmedizin.",
 };
 export default function RootLayout({

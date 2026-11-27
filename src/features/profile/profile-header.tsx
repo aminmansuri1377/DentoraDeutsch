@@ -64,7 +64,7 @@ export function ProfileHeader({
             alt=""
             aria-hidden="true"
           /> */}
-          <h1>{user.name || "Dentora Mitglied"}</h1>
+          <h1>{user.name || "Zahn Uni Mitglied"}</h1>
           {user.username && (
             <span className={styles.username}>@{user.username}</span>
           )}

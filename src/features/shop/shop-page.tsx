@@ -31,13 +31,13 @@ export function ShopPage() {
             <Card key={p.id} className="product-card">
               <span className="pill">
                 {p.kind === "PRO"
-                  ? "DENTORA PRO"
+                  ? "ZAHN UNI PRO"
                   : p.kind === "COURSE"
                     ? "SPEZIALKURS"
                     : "DIAMANTEN"}
               </span>
-              <h2>{p.title}</h2>
-              <p>{p.description}</p>
+              <h2>{p.title.replace(/Dentora/gi, "Zahn Uni")}</h2>
+              <p>{p.description.replace(/Dentora/gi, "Zahn Uni")}</p>
               <strong className="price">{euro(p.priceCents)}</strong>
               <small>
                 {p.durationDays

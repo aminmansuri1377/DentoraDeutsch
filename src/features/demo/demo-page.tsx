@@ -213,7 +213,7 @@ export function DemoPage({ path }: { path: string[] }) {
             ["Ein Jahr Pro", "149,90 €", "365 Tage"],
           ].map(([title, price, duration]) => (
             <Card className="product-card" key={title}>
-              <span className="pill">DENTORA PRO</span>
+              <span className="pill">ZAHN UNI PRO</span>
               <h2>{title}</h2>
               <p>Mehr Lernraum für deine fachliche Entwicklung.</p>
               <strong className="price">{price}</strong>

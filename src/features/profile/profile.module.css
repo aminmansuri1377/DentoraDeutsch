@@ -182,6 +182,31 @@
   padding: 9px;
   font-size: 12px !important;
 }
+.collectionShortcut {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 17px 15px;
+  border: 1px solid #d5b9ef;
+  background: linear-gradient(110deg, #f8f2ff, #fff);
+  border-radius: 17px;
+  color: #69419c;
+  box-shadow: 0 7px 22px #64359a10;
+  text-decoration: none;
+}
+.collectionIcon {
+  width: 45px;
+  height: 45px;
+  border-radius: 13px;
+  background: #e9d8fa;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+.collectionCopy { flex: 1; min-width: 0; }
+.collectionCopy strong { display: block; font-size: 15px; }
+.collectionCopy small { display: block; font-size: 12px; color: #8d78a1; line-height: 1.5; margin-top: 3px; }
+.collectionShortcut:focus-visible { outline: 3px solid #ab78d7; outline-offset: 3px; }
 .switcher {
   display: flex;
   gap: 8px;

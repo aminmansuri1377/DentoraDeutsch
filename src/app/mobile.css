@@ -26,17 +26,11 @@ body {
   border-bottom: 1px solid #ede8f4;
 }
 .mobile-brand {
-  font-weight: 800;
-  font-size: 28px;
-  color: #7746bf;
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 6px;
-  letter-spacing: -1px;
-}
-.mobile-brand span {
-  font-size: 22px;
-  color: #39244e;
+  min-width: 0;
+  gap: 0;
+  text-decoration: none;
 }
 .mobile-counters {
   display: flex;
@@ -466,8 +460,8 @@ body {
   .mobile-counters {
     gap: 8px;
   }
-  .mobile-brand span {
-    font-size: 20px;
+  .mobile-brand {
+    max-width: 65%;
   }
   .mobile-shell .tooth-art {
     width: 155px;
@@ -504,6 +498,32 @@ body {
   font-size: 12px;
   flex-shrink: 0;
 }
+
+.mobile-shell .collection-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+.mobile-shell .collection-row .text-link {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.mobile-shell .collection-remove {
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border: 1px solid #eed9e5;
+  border-radius: 12px;
+  color: #a63b61;
+  background: #fff3f7;
+  cursor: pointer;
+}
+.mobile-shell .collection-remove:disabled { opacity: .5; cursor: wait; }
+.mobile-shell .collection-remove:focus-visible { outline: 3px solid #bc86d8; }
 
 /* Readable learner text; admin panel styling stays independent. */
 .mobile-shell {

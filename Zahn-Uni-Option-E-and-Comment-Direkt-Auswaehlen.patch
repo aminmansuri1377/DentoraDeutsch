@@ -1,0 +1,138 @@
+diff --git a/src/components/layout/brand-wordmark.module.css b/src/components/layout/brand-wordmark.module.css
+--- a/src/components/layout/brand-wordmark.module.css
++++ b/src/components/layout/brand-wordmark.module.css
+@@ -37,3 +37,56 @@
+ @media (prefers-reduced-motion: reduce) {
+   .suffix { animation: none; }
+ }
++
++/* Option E: playful academic hand-lettered identity for Zahn Uni.
++   Overrides the earlier rounded-bold variant without changing the shared React component. */
++.wordmark {
++  font-family: "Segoe Print", "Comic Sans MS", "Trebuchet MS", cursive;
++  letter-spacing: -0.045em;
++}
++.name {
++  position: relative;
++  display: inline-block;
++  font-family: "Segoe Print", "Comic Sans MS", "Trebuchet MS", cursive;
++  font-size: clamp(18px, 4.6vw, 22px);
++  line-height: 1.4;
++  font-weight: 900;
++  color: #291447;
++  letter-spacing: -0.075em;
++  text-shadow: none;
++  transform: rotate(-1.1deg);
++  isolation: isolate;
++}
++.name::before {
++  content: "";
++  position: absolute;
++  left: 16%;
++  right: 3%;
++  bottom: 1px;
++  height: 3px;
++  border-radius: 75% 30% 70% 35%;
++  background: linear-gradient(90deg, #ac68df, #c99af1 65%, transparent);
++  transform: rotate(-2deg);
++  z-index: -1;
++}
++.name::after {
++  content: "";
++  position: absolute;
++  width: 17px;
++  height: 17px;
++  top: -8px;
++  right: 7px;
++  background: center / contain no-repeat url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23914dcd' stroke-width='2.1' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m2 9 10-5 10 5-10 5L2 9Z'/%3E%3Cpath d='M6 11.2v5.1c3.8 2.7 8.2 2.7 12 0v-5.1M22 9v7'/%3E%3C/svg%3E");
++  transform: rotate(10deg);
++  pointer-events: none;
++}
++.suffix {
++  font-family: "Trebuchet MS", "Segoe UI", sans-serif;
++  font-size: clamp(15px, 3.7vw, 18px);
++  font-weight: 800;
++  letter-spacing: -0.045em;
++  margin-left: 6px;
++}
++.large .name { font-size: clamp(31px, 7.5vw, 39px); }
++.large .name::after { width: 24px; height: 24px; top: -10px; }
++.large .suffix { font-size: clamp(22px, 5.5vw, 29px); margin-left: 8px; }
+diff --git a/scripts/comment-direct-select.mjs b/scripts/comment-direct-select.mjs
+new file mode 100644
+--- /dev/null
++++ b/scripts/comment-direct-select.mjs
+@@ -0,0 +1,73 @@
++/**
++ * One-time source edit: comment out the redundant "Direkt auswählen" selector.
++ * The code is deliberately preserved in a JSX comment for easy restoration.
++ * Fails closed if the component structure differs: never comments out a large
++ * surrounding page and never silently reports success without an edit.
++ *
++ * Run from the project root: node scripts/comment-direct-select.mjs
++ */
++import { readFile, readdir, writeFile } from "node:fs/promises";
++import { join } from "node:path";
++import ts from "typescript";
++
++const root = join(process.cwd(), "src", "features", "learning", "components");
++const targetText = "Direkt auswählen";
++const marker = "ZAHN_UNI_DIRECT_SELECT_DISABLED";
++const files = (await readdir(root)).filter((name) => name.endsWith(".tsx"));
++const matches = [];
++for (const filename of files) {
++  const path = join(root, filename);
++  const source = await readFile(path, "utf8");
++  if (!source.includes(targetText)) continue;
++  if (source.includes(marker)) {
++    console.log(`Already commented: ${filename}`);
++    continue;
++  }
++  const tree = ts.createSourceFile(filename, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
++  if (tree.parseDiagnostics.length) {
++    throw new Error(`${filename} contains JSX syntax errors before editing; nothing changed.`);
++  }
++  const candidates = [];
++  function visit(node) {
++    if (ts.isJsxElement(node)) {
++      const text = node.getText(tree);
++      // Find the smallest containing JSX wrapper with both the label and select.
++      if (text.includes(targetText) && /<\s*(?:select|Select)\b/.test(text)) {
++        candidates.push({ node, length: text.length });
++      }
++    }
++    ts.forEachChild(node, visit);
++  }
++  visit(tree);
++  candidates.sort((a, b) => a.length - b.length);
++  const found = candidates[0];
++  if (!found || found.length > 4500) {
++    throw new Error(`${filename}: could not safely isolate the "Direkt auswählen" selector. No file was changed.`);
++  }
++  const start = found.node.getStart(tree);
++  const end = found.node.getEnd();
++  const original = source.slice(start, end);
++  if (original.includes("*/")) {
++    throw new Error(`${filename}: the block contains an existing comment; no file was changed.`);
++  }
++  const replacement = `{/* ${marker}: redundant selector; the specialty picker above remains active.\n${original}\n*/}`;
++  const modified = source.slice(0, start) + replacement + source.slice(end);
++  const check = ts.createSourceFile(filename, modified, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
++  if (check.parseDiagnostics.length) {
++    throw new Error(`${filename}: JSX validation failed after edit; no file was changed.`);
++  }
++  matches.push({ path, filename, modified });
++}
++if (matches.length > 1) {
++  throw new Error(`Found ${matches.length} possible selectors: no files were changed.`);
++}
++if (matches.length === 0) {
++  // An already-commented selector is an idempotent no-op.
++  const all = await Promise.all(files.map((name) => readFile(join(root, name), "utf8")));
++  if (!all.some((content) => content.includes(marker))) {
++    throw new Error('Could not find "Direkt auswählen" in the learning components. No files were changed.');
++  }
++} else {
++  await writeFile(matches[0].path, matches[0].modified, "utf8");
++  console.log(`Commented redundant selector in ${matches[0].filename}; other selectors remain intact.`);
++}
