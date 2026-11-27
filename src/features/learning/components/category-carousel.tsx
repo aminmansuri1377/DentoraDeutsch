@@ -55,7 +55,7 @@ export function CategoryCarousel({
       <span className={styles.caption}>
         {completed} von {total} Lektionen abgeschlossen
       </span>
-      <label className={styles.select}>
+      {/* <label className={styles.select}>
         Direkt auswählen
         <select
           value={selected}
@@ -70,7 +70,7 @@ export function CategoryCarousel({
             </option>
           ))}
         </select>
-      </label>
+      </label> */}
     </section>
   );
 }
